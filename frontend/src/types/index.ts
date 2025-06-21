@@ -1,5 +1,6 @@
 export interface User {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
   regNo: string;
@@ -11,15 +12,13 @@ export interface User {
 
 export interface Message {
   _id: string;
-  groupId: string;
+  groupId?: string;
   senderId: User;
+  receiverId?: User;
   text: string;
+  messageType: 'group' | 'direct';
+  timestamp: string;
   createdAt: string;
-  attachments?: Array<{
-    type: 'image' | 'document';
-    url: string;
-    name: string;
-  }>;
 }
 
 export interface Group {
@@ -44,7 +43,6 @@ export interface AuthResponse {
 export interface LoginFormData {
   regNo: string;
   password: string;
-  rememberMe?: boolean;
 }
 
 export interface RegisterFormData {
@@ -55,4 +53,17 @@ export interface RegisterFormData {
   confirmPassword: string;
   department: string;
   year: number;
+}
+
+export interface DirectMessageContact {
+  user: User;
+  lastMessage: Message;
+  unreadCount: number;
+}
+
+export interface DirectMessageConversation {
+  _id: string;
+  participants: User[];
+  lastMessage?: Message;
+  updatedAt: string;
 } 

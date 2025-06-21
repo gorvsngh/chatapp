@@ -18,10 +18,10 @@ interface MessageListProps {
 }
 
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
-  const messageBg = useColorModeValue('messageBg', 'gray.700');
-  const myMessageBg = useColorModeValue('myMessageBg', 'brand.600');
+  const messageBg = useColorModeValue('gray.100', 'gray.700');
+  const myMessageBg = useColorModeValue('gray.200', 'brand.600');
   const textColor = useColorModeValue('gray.800', 'white');
-  const myTextColor = useColorModeValue('white', 'white');
+  const myTextColor = useColorModeValue('gray.800', 'white');
   const timestampColor = useColorModeValue('gray.500', 'gray.300');
   const senderNameColor = useColorModeValue('brand.600', 'brand.300');
 
@@ -61,8 +61,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
   const shouldShowDateSeparator = (currentMessage: Message, previousMessage?: Message) => {
     if (!previousMessage) return true;
     
-    const currentDate = new Date(currentMessage.createdAt).toDateString();
-    const previousDate = new Date(previousMessage.createdAt).toDateString();
+    const currentDate = new Date(currentMessage.timestamp).toDateString();
+    const previousDate = new Date(previousMessage.timestamp).toDateString();
     
     return currentDate !== previousDate;
   };
@@ -72,7 +72,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
     
     const currentSender = currentMessage.senderId._id;
     const nextSender = nextMessage.senderId._id;
-    const currentUserId = currentUser._id || currentUser.id;
+    const currentUserId = currentUser._id || (currentUser as any)?.id;
     
     // Always show avatar for other users' messages if it's the last in a group
     if (currentSender !== currentUserId) {
@@ -98,14 +98,14 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
   };
 
   return (
-    <VStack spacing={2} align="stretch">
+    <VStack spacing={1} align="stretch">
       {messages.map((message, index) => {
         // Basic validation
         if (!message?._id || !message.senderId?._id) {
           return null;
         }
 
-        const currentUserId = currentUser._id || currentUser.id;
+        const currentUserId = currentUser._id || (currentUser as any)?.id;
         const isSender = message.senderId._id === currentUserId;
         const showDateSeparator = shouldShowDateSeparator(message, messages[index - 1]);
         const showAvatar = shouldShowAvatar(message, messages[index + 1]);
@@ -117,17 +117,17 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
           <Box key={message._id}>
             {/* Date Separator */}
             {showDateSeparator && (
-              <Flex justify="center" my={4}>
+              <Flex justify="center" my={2}>
                 <Box
-                  bg="gray.100"
-                  px={3}
-                  py={1}
+                  bg="gray.200"
+                  px={2}
+                  py={0.5}
                   borderRadius="full"
                   border="1px solid"
-                  borderColor="gray.200"
+                  borderColor="gray.300"
                 >
                   <Text fontSize="xs" color="gray.600" fontWeight="500">
-                    {formatDate(message.createdAt)}
+                    {formatDate(message.timestamp || '')}
                   </Text>
                 </Box>
               </Flex>
@@ -137,7 +137,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
             <Flex
               w="100%"
               justify={isSender ? 'flex-end' : 'flex-start'}
-              mb={isConsecutive ? 1 : 2}
+              mb={isConsecutive ? 0.5 : 1}
             >
               <Flex 
                 align="flex-end" 
@@ -145,15 +145,15 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
                 direction={isSender ? 'row-reverse' : 'row'}
               >
                 {!isSender && (
-                  <Box mr={2} alignSelf="flex-end">
+                  <Box mr={1.5} alignSelf="flex-end">
                     {showAvatar ? (
                       <Avatar
-                        size="sm"
+                        size="xs"
                         name={message.senderId.name}
                         src={message.senderId.profilePic}
                       />
                     ) : (
-                      <Box w="32px" h="32px" /> // Spacer to maintain alignment
+                      <Box w="24px" h="24px" /> // Spacer to maintain alignment
                     )}
                   </Box>
                 )}
@@ -161,12 +161,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
                 <Box
                   bg={isSender ? myMessageBg : messageBg}
                   color={isSender ? myTextColor : textColor}
-                  px={4}
-                  py={2}
-                  borderRadius="18px"
+                  px={2.5}
+                  py={0.5}
+                  borderRadius="12px"
                   boxShadow="sm"
                   border="1px solid"
-                  borderColor={isSender ? 'transparent' : 'gray.100'}
+                  borderColor={isSender ? 'gray.300' : 'gray.200'}
                   position="relative"
                   _before={!isSender && showAvatar ? {
                     content: '""',
@@ -194,7 +194,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
                   } : {}}
                 >
                   {!isSender && !isConsecutive && (
-                    <HStack spacing={2} mb={1}>
+                    <HStack spacing={1.5} mb={0}>
                       <Text fontSize="xs" fontWeight="600" color={senderNameColor}>
                         {message.senderId.name}
                       </Text>
@@ -211,7 +211,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
                   <Box>
                     <Text 
                       fontSize="sm" 
-                      lineHeight="1.4"
+                      lineHeight="1.2"
+                      mb={0}
                       style={{ 
                         whiteSpace: 'pre-wrap', 
                         wordBreak: 'break-word' 
@@ -220,14 +221,17 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
                       {message.text}
                     </Text>
                     
-                    <Text
-                      fontSize="xs"
-                      color={isSender ? 'rgba(255,255,255,0.7)' : timestampColor}
-                      mt={1}
-                      textAlign="right"
-                    >
-                      {formatTimestamp(message.createdAt)}
-                    </Text>
+                    {/* WhatsApp-like timestamp */}
+                    <Flex justify="flex-end" align="center">
+                      <Text
+                        fontSize="xs"
+                        color={isSender ? 'gray.600' : timestampColor}
+                        fontWeight="400"
+                        opacity={0.8}
+                      >
+                        {formatTimestamp(message.timestamp)}
+                      </Text>
+                    </Flex>
                   </Box>
                 </Box>
               </Flex>

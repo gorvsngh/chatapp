@@ -3,28 +3,28 @@ import { extendTheme } from '@chakra-ui/react';
 const theme = extendTheme({
   colors: {
     brand: {
-      50: '#f5f5f5',
-      100: '#e8e8e8',
-      200: '#d1d1d1',
-      300: '#b4b4b4',
-      400: '#888888',
-      500: '#2D3748', // Primary dark
-      600: '#1A202C',
-      700: '#171923',
-      800: '#1A1A1A',
-      900: '#000000',
-    },
-    gray: {
-      50: '#fafafa',
-      100: '#f4f4f4',
-      200: '#e8e8e8',
-      300: '#d6d6d6',
-      400: '#a8a8a8',
-      500: '#6b7280',
+      50: '#f9fafb',
+      100: '#f3f4f6',
+      200: '#e5e7eb',
+      300: '#d1d5db',
+      400: '#9ca3af',
+      500: '#6b7280', // Primary grey
       600: '#4b5563',
       700: '#374151',
       800: '#1f2937',
       900: '#111827',
+    },
+    gray: {
+      50: '#ffffff',
+      100: '#f9fafb',
+      200: '#f3f4f6',
+      300: '#e5e7eb',
+      400: '#d1d5db',
+      500: '#9ca3af',
+      600: '#6b7280',
+      700: '#4b5563',
+      800: '#374151',
+      900: '#1f2937',
     },
     accent: {
       50: '#f8fafc',
@@ -41,9 +41,9 @@ const theme = extendTheme({
     success: '#10b981',
     warning: '#f59e0b',
     error: '#ef4444',
-    chatBg: '#f8f9fa',
-    messageBg: '#ffffff',
-    myMessageBg: '#2D3748',
+    chatBg: '#ffffff',
+    messageBg: '#f3f4f6',
+    myMessageBg: '#e5e7eb',
   },
   fonts: {
     heading: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
@@ -64,7 +64,7 @@ const theme = extendTheme({
         fontWeight: '600',
         borderRadius: '8px',
         _focus: {
-          boxShadow: '0 0 0 3px rgba(45, 55, 72, 0.1)'
+          boxShadow: '0 0 0 3px rgba(107, 114, 128, 0.1)'
         }
       },
       variants: {
@@ -83,15 +83,15 @@ const theme = extendTheme({
         },
         ghost: {
           _hover: {
-            bg: 'brand.50'
+            bg: 'gray.100'
           }
         },
         outline: {
-          borderColor: 'brand.300',
+          borderColor: 'gray.300',
           color: 'brand.600',
           _hover: {
-            bg: 'brand.50',
-            borderColor: 'brand.400'
+            bg: 'gray.50',
+            borderColor: 'gray.400'
           }
         }
       },
@@ -100,13 +100,14 @@ const theme = extendTheme({
       variants: {
         outline: {
           field: {
-            borderColor: 'gray.200',
+            borderColor: 'gray.300',
+            bg: 'white',
             _hover: {
-              borderColor: 'gray.300'
+              borderColor: 'gray.400'
             },
             _focus: {
               borderColor: 'brand.500',
-              boxShadow: '0 0 0 1px rgba(45, 55, 72, 0.2)'
+              boxShadow: '0 0 0 1px rgba(107, 114, 128, 0.2)'
             }
           }
         }
@@ -119,7 +120,7 @@ const theme = extendTheme({
           borderRadius: '12px',
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           border: '1px solid',
-          borderColor: 'gray.100'
+          borderColor: 'gray.200'
         }
       }
     }
@@ -127,12 +128,12 @@ const theme = extendTheme({
   styles: {
     global: {
       body: {
-        bg: 'gray.50',
+        bg: 'white',
         color: 'gray.800'
       },
       '*': {
         scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent'
+        scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent'
       },
       '*::-webkit-scrollbar': {
         width: '4px'
@@ -141,7 +142,7 @@ const theme = extendTheme({
         background: 'transparent'
       },
       '*::-webkit-scrollbar-thumb': {
-        background: 'rgba(155, 155, 155, 0.5)',
+        background: 'rgba(156, 163, 175, 0.5)',
         borderRadius: '20px'
       }
     },

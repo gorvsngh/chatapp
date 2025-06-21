@@ -17,39 +17,161 @@ import {
   useColorModeValue,
   Badge,
   HStack,
-  Button
+  Button,
+  useDisclosure,
+  AvatarGroup
 } from '@chakra-ui/react';
 import { SearchIcon, AddIcon, SettingsIcon } from '@chakra-ui/icons';
-import { FiMoreVertical, FiUser, FiLogOut } from 'react-icons/fi';
+import { FiMoreVertical, FiUser, FiLogOut, FiSearch, FiUsers, FiMessageCircle } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
-import { Group } from '../../types';
-import GroupList from './GroupList';
+import { Group, DirectMessageContact, User } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import DiscoverGroupsModal from '../DiscoverGroupsModal';
+
+interface ChatItem {
+  id: string;
+  type: 'group' | 'direct';
+  name: string;
+  lastMessage?: {
+    text: string;
+    timestamp: string;
+    senderName?: string;
+  };
+  avatar?: string;
+  members?: number;
+  role?: string;
+  regNo?: string;
+  department?: string;
+  year?: number;
+  groupType?: Group['type'];
+  data: Group | User;
+}
 
 interface SidebarProps {
   groups: Group[];
+  directContacts: DirectMessageContact[];
   selectedGroup: Group | null;
+  selectedDirectUser: User | null;
   onGroupSelect: (group: Group) => void;
+  onDirectUserSelect: (user: User) => void;
   onCreateGroup?: () => void;
+  onGroupJoined?: (group: Group) => void;
+  onUserSearch?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   groups,
+  directContacts,
   selectedGroup,
+  selectedDirectUser,
   onGroupSelect,
+  onDirectUserSelect,
   onCreateGroup,
+  onGroupJoined,
+  onUserSearch,
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const { isOpen: isDiscoverOpen, onOpen: onDiscoverOpen, onClose: onDiscoverClose } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const headerBg = useColorModeValue('brand.500', 'brand.600');
+  const headerBg = useColorModeValue('gray.100', 'brand.600');
+  const selectedBg = useColorModeValue('brand.50', 'brand.900');
+  const selectedBorderColor = useColorModeValue('brand.200', 'brand.700');
+  const hoverBg = useColorModeValue('gray.50', 'gray.700');
+  const messageBg = useColorModeValue('gray.100', 'gray.700');
 
-  const filteredGroups = groups.filter(group =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Convert groups and direct contacts to unified chat items
+  const allChatItems: ChatItem[] = React.useMemo(() => {
+    const groupItems: ChatItem[] = groups.map(group => ({
+      id: group._id,
+      type: 'group' as const,
+      name: group.name,
+      lastMessage: group.lastMessage ? {
+        text: group.lastMessage.text,
+        timestamp: group.lastMessage.timestamp,
+        senderName: group.lastMessage.senderId.name.split(' ')[0]
+      } : undefined,
+      avatar: undefined,
+      members: group.members?.length || 0,
+      groupType: group.type,
+      data: group
+    }));
+
+    const directItems: ChatItem[] = directContacts.map(contact => ({
+      id: contact.user._id || contact.user.id || '',
+      type: 'direct' as const,
+      name: contact.user.name,
+      lastMessage: contact.lastMessage ? {
+        text: contact.lastMessage.text,
+        timestamp: contact.lastMessage.timestamp,
+        senderName: contact.lastMessage.senderId._id === user?._id ? 'You' : contact.lastMessage.senderId.name.split(' ')[0]
+      } : undefined,
+      avatar: contact.user.profilePic,
+      role: contact.user.role,
+      regNo: contact.user.regNo,
+      department: contact.user.department,
+      year: contact.user.year,
+      data: contact.user
+    }));
+
+    return [...groupItems, ...directItems];
+  }, [groups, directContacts, user?._id]);
+
+  // Filter and sort chat items
+  const filteredAndSortedItems = React.useMemo(() => {
+    let filtered = allChatItems;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = allChatItems.filter(item => {
+        // Search in name
+        if (item.name.toLowerCase().includes(query)) return true;
+        
+        // For direct messages, also search in regNo and department
+        if (item.type === 'direct') {
+          const user = item.data as User;
+          if (user.regNo?.toLowerCase().includes(query)) return true;
+          if (user.department?.toLowerCase().includes(query)) return true;
+        }
+        
+        // Search in last message text
+        if (item.lastMessage?.text.toLowerCase().includes(query)) return true;
+        
+        return false;
+      });
+    }
+
+    // Sort by most recent activity (items without messages get current time to appear at top)
+    return filtered.sort((a, b) => {
+      const aTime = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : Date.now();
+      const bTime = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : Date.now();
+      return bTime - aTime; // Most recent first
+    });
+  }, [allChatItems, searchQuery]);
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } else if (diffInHours < 168) { // Less than a week
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  };
 
   const formatRole = (role: string) => {
     switch (role) {
@@ -81,20 +203,87 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const getGroupTypeColor = (type: Group['type']) => {
+    switch (type) {
+      case 'department':
+        return 'blue';
+      case 'class':
+        return 'green';
+      case 'general':
+        return 'gray';
+      default:
+        return 'gray';
+    }
+  };
+
+  const formatGroupType = (type: Group['type']) => {
+    switch (type) {
+      case 'department':
+        return 'DEPT';
+      case 'class':
+        return 'CLASS';
+      case 'general':
+        return 'GEN';
+      default:
+        return 'GEN';
+    }
+  };
+
+  const getLastMessagePreview = (item: ChatItem) => {
+    if (!item.lastMessage) {
+      if (item.type === 'group') {
+        return (item.data as Group).description || 'No messages yet';
+      } else {
+        return 'Start your conversation';
+      }
+    }
+    
+    const messageText = item.lastMessage.text;
+    const senderName = item.lastMessage.senderName || '';
+    
+    if (messageText.length > 35) {
+      return `${senderName}: ${messageText.substring(0, 35)}...`;
+    }
+    
+    return `${senderName}: ${messageText}`;
+  };
+
+  const handleItemClick = (item: ChatItem) => {
+    if (item.type === 'group') {
+      onGroupSelect(item.data as Group);
+    } else {
+      onDirectUserSelect(item.data as User);
+    }
+  };
+
+  const isItemSelected = (item: ChatItem) => {
+    if (item.type === 'group') {
+      return selectedGroup?._id === item.id;
+    } else {
+      return selectedDirectUser?._id === item.id || selectedDirectUser?.id === item.id;
+    }
+  };
+
   return (
     <Box
       w="380px"
-      h="100vh"
+      h="100%"
       bg={bgColor}
       borderRight="1px"
       borderColor={borderColor}
       shadow="sm"
+      display="flex"
+      flexDirection="column"
+      flexShrink={0}
     >
       {/* Header */}
       <Box
         p={4}
         bg={headerBg}
-        color="white"
+        color="gray.800"
+        flexShrink={0}
+        borderBottom="1px"
+        borderColor={borderColor}
       >
         <Flex alignItems="center" justifyContent="space-between" mb={3}>
           <HStack 
@@ -108,18 +297,17 @@ const Sidebar: React.FC<SidebarProps> = ({
               size="sm"
               name={user?.name}
               src={user?.profilePic}
-              border="2px solid rgba(255,255,255,0.3)"
+              border="2px solid"
+              borderColor="gray.300"
             />
             <VStack align="start" spacing={0}>
-              <Text fontWeight="600" fontSize="sm">
+              <Text fontWeight="600" fontSize="sm" color="gray.800">
                 {user?.name}
               </Text>
               <Badge
                 colorScheme={getRoleBadgeColor(user?.role || '')}
                 size="xs"
                 variant="solid"
-                bg="rgba(255,255,255,0.2)"
-                color="white"
               >
                 {formatRole(user?.role || '')}
               </Badge>
@@ -127,15 +315,33 @@ const Sidebar: React.FC<SidebarProps> = ({
           </HStack>
           
           <HStack spacing={1}>
+            <IconButton
+              aria-label="Find people"
+              icon={<FiSearch />}
+              variant="ghost"
+              size="sm"
+              color="gray.600"
+              onClick={onUserSearch}
+              _hover={{ bg: 'gray.200' }}
+            />
+            <IconButton
+              aria-label="Discover groups"
+              icon={<FiUsers />}
+              variant="ghost"
+              size="sm"
+              color="gray.600"
+              onClick={onDiscoverOpen}
+              _hover={{ bg: 'gray.200' }}
+            />
             {(user?.role === 'hod' || user?.role === 'admin') && (
               <IconButton
                 aria-label="Create group"
                 icon={<AddIcon />}
                 variant="ghost"
                 size="sm"
-                colorScheme="whiteAlpha"
+                color="gray.600"
                 onClick={onCreateGroup}
-                _hover={{ bg: 'rgba(255,255,255,0.1)' }}
+                _hover={{ bg: 'gray.200' }}
               />
             )}
             <Menu>
@@ -145,8 +351,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 icon={<FiMoreVertical />}
                 variant="ghost"
                 size="sm"
-                colorScheme="whiteAlpha"
-                _hover={{ bg: 'rgba(255,255,255,0.1)' }}
+                color="gray.600"
+                _hover={{ bg: 'gray.200' }}
               />
               <MenuList color="gray.800">
                 <MenuItem icon={<FiUser />} onClick={() => navigate('/profile')}>
@@ -156,7 +362,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   Settings
                 </MenuItem>
                 {user?.role === 'admin' && (
-                  <MenuItem as="a" href="/admin">
+                  <MenuItem icon={<SettingsIcon />} onClick={() => navigate('/admin')}>
                     Admin Panel
                   </MenuItem>
                 )}
@@ -169,29 +375,29 @@ const Sidebar: React.FC<SidebarProps> = ({
           </HStack>
         </Flex>
         
-        <Text fontSize="xs" opacity={0.8}>
-          Welcome back! You have {groups.length} groups
+        <Text fontSize="xs" color="gray.600">
+          {groups.length} groups • {directContacts.length} direct chats
         </Text>
       </Box>
 
       {/* Search */}
-      <Box p={4} pb={2}>
+      <Box p={4} pb={2} flexShrink={0}>
         <InputGroup>
           <InputLeftElement pointerEvents="none">
             <SearchIcon color="gray.400" />
           </InputLeftElement>
           <Input
-            placeholder="Search groups..."
-            bg="gray.50"
+            placeholder="Search groups and people..."
+            bg="white"
             border="1px solid"
-            borderColor="gray.200"
+            borderColor="gray.300"
             _focus={{ 
               border: '1px solid',
               borderColor: 'brand.300',
               bg: 'white',
-              boxShadow: '0 0 0 1px rgba(45, 55, 72, 0.1)'
+              boxShadow: '0 0 0 1px rgba(107, 114, 128, 0.1)'
             }}
-            _hover={{ borderColor: 'gray.300' }}
+            _hover={{ borderColor: 'gray.400' }}
             borderRadius="lg"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -200,10 +406,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       </Box>
 
       {/* Filter/Status Bar */}
-      <Box px={4} pb={2}>
+      <Box px={4} pb={2} flexShrink={0}>
         <HStack spacing={2} justify="space-between">
           <Text fontSize="xs" color="gray.500" fontWeight="500">
-            {filteredGroups.length} of {groups.length} groups
+            {filteredAndSortedItems.length} of {allChatItems.length} chats
           </Text>
           {searchQuery && (
             <Button
@@ -218,13 +424,15 @@ const Sidebar: React.FC<SidebarProps> = ({
         </HStack>
       </Box>
 
-      <Divider />
+      <Box flexShrink={0}>
+        <Divider />
+      </Box>
 
-      {/* Groups List */}
+      {/* Unified Chat List */}
       <VStack
         spacing={0}
         overflowY="auto"
-        h="calc(100vh - 200px)"
+        flex="1"
         css={{
           '&::-webkit-scrollbar': {
             width: '4px',
@@ -233,38 +441,218 @@ const Sidebar: React.FC<SidebarProps> = ({
             background: 'transparent',
           },
           '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(155, 155, 155, 0.5)',
+            background: 'rgba(156, 163, 175, 0.5)',
             borderRadius: '20px',
           },
           '&::-webkit-scrollbar-thumb:hover': {
-            background: 'rgba(155, 155, 155, 0.7)',
+            background: 'rgba(156, 163, 175, 0.7)',
           },
         }}
       >
-        {filteredGroups.length > 0 ? (
-          <GroupList
-            groups={filteredGroups}
-            selectedGroup={selectedGroup}
-            onGroupSelect={onGroupSelect}
-          />
+        {filteredAndSortedItems.length > 0 ? (
+          filteredAndSortedItems.map((item) => {
+            const isSelected = isItemSelected(item);
+            
+            return (
+              <Box
+                key={item.id}
+                p={3}
+                cursor="pointer"
+                bg={isSelected ? selectedBg : 'transparent'}
+                borderLeft={isSelected ? '3px solid' : '3px solid transparent'}
+                borderLeftColor={isSelected ? 'brand.500' : 'transparent'}
+                _hover={{ 
+                  bg: isSelected ? selectedBg : hoverBg,
+                  transform: 'translateX(2px)',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                onClick={() => handleItemClick(item)}
+                borderBottom="1px"
+                borderColor="gray.100"
+                transition="all 0.2s ease-in-out"
+                position="relative"
+                w="100%"
+              >
+                <Flex>
+                  <Box position="relative">
+                    {item.type === 'group' ? (
+                      <Avatar
+                        size="md"
+                        name={item.name}
+                        mr={3}
+                        border={isSelected ? '2px solid' : '2px solid transparent'}
+                        borderColor={isSelected ? 'brand.300' : 'transparent'}
+                      />
+                    ) : (
+                      <Avatar
+                        size="md"
+                        name={item.name}
+                        src={item.avatar}
+                        mr={3}
+                        border={isSelected ? '2px solid' : '2px solid transparent'}
+                        borderColor={isSelected ? 'brand.300' : 'transparent'}
+                      />
+                    )}
+                    
+                    {/* Type indicator */}
+                    <Box
+                      position="absolute"
+                      bottom="0"
+                      right="3"
+                      w="4"
+                      h="4"
+                      bg={item.type === 'group' ? 'blue.400' : 'green.400'}
+                      borderRadius="full"
+                      border="2px solid white"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      {item.type === 'group' ? (
+                        <FiUsers size="8px" color="white" />
+                      ) : (
+                        <FiMessageCircle size="8px" color="white" />
+                      )}
+                    </Box>
+                  </Box>
+                  
+                  <Box flex="1" minW="0">
+                    <Flex justify="space-between" align="start" mb={1}>
+                      <HStack spacing={2} flex="1" minW="0">
+                        <Text 
+                          fontWeight={isSelected ? "700" : "600"} 
+                          fontSize="sm"
+                          color={isSelected ? "brand.700" : "gray.800"}
+                          noOfLines={1}
+                          flex="1"
+                        >
+                          {item.name}
+                        </Text>
+                        
+                        {item.type === 'group' ? (
+                          <Badge
+                            colorScheme={getGroupTypeColor(item.groupType!)}
+                            fontSize="xs"
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            variant="subtle"
+                          >
+                            {formatGroupType(item.groupType!)}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            colorScheme={getRoleBadgeColor(item.role!)}
+                            fontSize="xs"
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            variant="subtle"
+                          >
+                            {formatRole(item.role!)}
+                          </Badge>
+                        )}
+                      </HStack>
+                      
+                      {item.lastMessage && (
+                        <Text 
+                          fontSize="xs" 
+                          color={isSelected ? "brand.600" : "gray.500"}
+                          fontWeight="500"
+                          ml={2}
+                        >
+                          {formatTime(item.lastMessage.timestamp)}
+                        </Text>
+                      )}
+                    </Flex>
+                    
+                    <Flex justify="space-between" align="center">
+                      <Text
+                        fontSize="xs"
+                        color={isSelected ? "brand.600" : "gray.500"}
+                        noOfLines={1}
+                        flex="1"
+                        fontWeight="400"
+                      >
+                        {getLastMessagePreview(item)}
+                      </Text>
+                      
+                      <HStack spacing={2} ml={2}>
+                        {item.type === 'group' ? (
+                          <HStack spacing={1}>
+                            <AvatarGroup size="xs" max={3} fontSize="xs">
+                              {(item.data as Group).members?.slice(0, 3).map((member) => (
+                                <Avatar
+                                  key={member._id}
+                                  name={member.name}
+                                  src={member.profilePic}
+                                  size="xs"
+                                />
+                              )) || []}
+                            </AvatarGroup>
+                            <Text fontSize="xs" color="gray.400" fontWeight="500">
+                              {item.members}
+                            </Text>
+                          </HStack>
+                        ) : (
+                          <Text fontSize="xs" color="gray.400" fontWeight="500">
+                            {item.regNo}
+                          </Text>
+                        )}
+                      </HStack>
+                    </Flex>
+                  </Box>
+                </Flex>
+              </Box>
+            );
+          })
         ) : (
           <Box p={6} textAlign="center">
             <Text color="gray.500" fontSize="sm">
-              {searchQuery ? 'No groups match your search' : 'No groups available'}
+              {searchQuery ? 'No chats match your search' : 'No chats available'}
             </Text>
-            {!searchQuery && (user?.role === 'hod' || user?.role === 'admin') && (
-              <Button
-                size="sm"
-                mt={2}
-                variant="outline"
-                onClick={onCreateGroup}
-              >
-                Create First Group
-              </Button>
+            {!searchQuery && (
+              <VStack spacing={2} mt={3}>
+                <Button
+                  size="sm"
+                  leftIcon={<FiSearch />}
+                  variant="outline"
+                  onClick={onUserSearch}
+                >
+                  Find People
+                </Button>
+                <Button
+                  size="sm"
+                  leftIcon={<FiUsers />}
+                  variant="outline"
+                  onClick={onDiscoverOpen}
+                >
+                  Discover Groups
+                </Button>
+                {(user?.role === 'hod' || user?.role === 'admin') && (
+                  <Button
+                    size="sm"
+                    leftIcon={<AddIcon />}
+                    variant="outline"
+                    onClick={onCreateGroup}
+                  >
+                    Create Group
+                  </Button>
+                )}
+              </VStack>
             )}
           </Box>
         )}
       </VStack>
+      
+      <DiscoverGroupsModal
+        isOpen={isDiscoverOpen}
+        onClose={onDiscoverClose}
+        onGroupJoined={(group) => {
+          onGroupJoined?.(group);
+          onDiscoverClose();
+        }}
+      />
     </Box>
   );
 };

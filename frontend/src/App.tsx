@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Groups from './pages/Groups';
 import Profile from './pages/Profile';
+import Admin from './pages/Admin';
 import theme from './theme';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -13,7 +14,7 @@ function App() {
     <ChakraProvider theme={theme}>
       <Router>
         <AuthProvider>
-          <Box minH="100vh">
+          <Box h="100vh" overflow="hidden">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -30,6 +31,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <Profile />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <PrivateRoute requiredRole="admin">
+                    <Admin />
                   </PrivateRoute>
                 }
               />

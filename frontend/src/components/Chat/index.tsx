@@ -23,15 +23,16 @@ import { FiSend, FiMoreVertical, FiInfo, FiUsers } from 'react-icons/fi';
 import { Group, Message, User } from '../../types';
 import MessageList from './MessageList';
 import GroupInfoModal from '../GroupInfoModal';
-import { socketService } from '../../services/socket';
+import socketService from '../../services/socket';
 import { groupAPI } from '../../services/api';
 
 interface ChatProps {
   group: Group;
   currentUser: User;
+  onNewMessage?: (groupId: string, message: Message) => void;
 }
 
-const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
+const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,7 +42,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const inputBg = useColorModeValue('white', 'gray.700');
-  const chatBg = useColorModeValue('chatBg', 'gray.900');
+  const chatBg = useColorModeValue('white', 'gray.900');
 
   useEffect(() => {
     // Join the new group's socket room
@@ -49,10 +50,29 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
 
     // Set up message listener
     const unsubscribe = socketService.onMessage((newMessage) => {
+      console.log('Received message:', newMessage);
+      console.log('Current group ID:', group._id);
+      console.log('Message group ID:', newMessage.groupId);
+      
       // Only add message if it belongs to the current group
       if (newMessage.groupId === group._id) {
+        console.log('Adding message to current group');
         setMessages((prev) => [...prev, newMessage]);
         scrollToBottom();
+        
+        // Update parent groups state with new message
+        if (onNewMessage) {
+          console.log('Calling onNewMessage for group:', group._id);
+          onNewMessage(group._id, newMessage);
+        } else {
+          console.log('onNewMessage is not available');
+        }
+      } else {
+        console.log('Message belongs to different group, but still updating parent');
+        // Update parent groups state even if message belongs to different group
+        if (onNewMessage) {
+          onNewMessage(newMessage.groupId, newMessage);
+        }
       }
     });
 
@@ -94,8 +114,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
     if (!message.trim()) return;
 
     // Defensive check for sender ID
-    const senderId = currentUser?._id || (currentUser as any)?.id;
-    if (!senderId) {
+    if (!currentUser?._id) {
         console.error("Could not find sender ID on currentUser object", currentUser);
         toast({
             title: "Error sending message",
@@ -107,7 +126,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
         return;
     }
 
-    socketService.sendMessage(group._id, senderId, message);
+    socketService.sendMessage(group._id, currentUser._id, message);
     setMessage('');
   };
 
@@ -148,13 +167,15 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
   const isUserCreator = group.createdBy?._id === currentUser._id;
 
   return (
-    <Box h="100vh" bg={chatBg} display="flex" flexDirection="column">
+    <Box h="100%" w="100%" bg={chatBg} display="flex" flexDirection="column">
       {/* Chat Header */}
       <Box
         bg={bgColor}
         borderBottom="1px"
         borderColor={borderColor}
         shadow="sm"
+        flexShrink={0}
+        w="100%"
       >
         <Flex
           p={4}
@@ -169,7 +190,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
             name={group.name}
             mr={4}
             border="2px solid"
-            borderColor="brand.100"
+            borderColor="gray.200"
           />
           
           <Box flex="1" minW="0">
@@ -190,21 +211,21 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
             </HStack>
             
             <HStack spacing={3}>
-                           <HStack spacing={1}>
-                 <AvatarGroup size="xs" max={4}>
-                   {group.members?.slice(0, 4).map((member) => (
-                     <Avatar
-                       key={member._id}
-                       name={member.name}
-                       src={member.profilePic}
-                       size="xs"
-                     />
-                   )) || []}
-                 </AvatarGroup>
-                 <Text fontSize="sm" color="gray.500" fontWeight="500">
-                   {group.members?.length || 0} members
-                 </Text>
-               </HStack>
+              <HStack spacing={1}>
+                <AvatarGroup size="xs" max={4}>
+                  {group.members?.slice(0, 4).map((member) => (
+                    <Avatar
+                      key={member._id}
+                      name={member.name}
+                      src={member.profilePic}
+                      size="xs"
+                    />
+                  )) || []}
+                </AvatarGroup>
+                <Text fontSize="sm" color="gray.500" fontWeight="500">
+                  {group.members?.length || 0} members
+                </Text>
+              </HStack>
               
               {group.department && (
                 <>
@@ -266,7 +287,8 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
       <Box
         flex="1"
         overflowY="auto"
-        p={4}
+        p={2}
+        w="100%"
         css={{
           '&::-webkit-scrollbar': {
             width: '4px',
@@ -275,11 +297,11 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
             background: 'transparent',
           },
           '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(155, 155, 155, 0.5)',
+            background: 'rgba(156, 163, 175, 0.5)',
             borderRadius: '20px',
           },
           '&::-webkit-scrollbar-thumb:hover': {
-            background: 'rgba(155, 155, 155, 0.7)',
+            background: 'rgba(156, 163, 175, 0.7)',
           },
         }}
       >
@@ -296,6 +318,8 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
         bg={bgColor}
         borderTop="1px"
         borderColor={borderColor}
+        flexShrink={0}
+        w="100%"
       >
         <InputGroup size="lg">
           <Input
@@ -306,13 +330,13 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser }) => {
             onKeyPress={handleKeyPress}
             bg={inputBg}
             border="1px solid"
-            borderColor="gray.200"
+            borderColor="gray.300"
             borderRadius="full"
             _focus={{
               borderColor: 'brand.400',
-              boxShadow: '0 0 0 1px rgba(45, 55, 72, 0.2)'
+              boxShadow: '0 0 0 1px rgba(107, 114, 128, 0.2)'
             }}
-            _hover={{ borderColor: 'gray.300' }}
+            _hover={{ borderColor: 'gray.400' }}
             fontSize="md"
           />
           <InputRightElement width="4.5rem">

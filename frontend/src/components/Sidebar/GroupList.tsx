@@ -27,6 +27,15 @@ const GroupList: React.FC<GroupListProps> = ({
   const selectedBorderColor = useColorModeValue('brand.200', 'brand.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
+  // Sort groups by most recent message timestamp
+  const sortedGroups = React.useMemo(() => {
+    return [...groups].sort((a, b) => {
+      const aTime = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
+      const bTime = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+      return bTime - aTime; // Most recent first
+    });
+  }, [groups]);
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -69,7 +78,7 @@ const GroupList: React.FC<GroupListProps> = ({
       case 'general':
         return 'GEN';
       default:
-        return type.toUpperCase();
+        return 'GEN';
     }
   };
 
@@ -90,7 +99,7 @@ const GroupList: React.FC<GroupListProps> = ({
 
   return (
     <VStack spacing={0} align="stretch" w="100%">
-      {groups.map((group) => {
+      {sortedGroups.map((group) => {
         const isSelected = selectedGroup?._id === group._id;
         
         return (
@@ -122,7 +131,7 @@ const GroupList: React.FC<GroupListProps> = ({
                   borderColor={isSelected ? 'brand.300' : 'transparent'}
                 />
                 {/* Online indicator for active groups (could be based on recent activity) */}
-                {group.lastMessage && new Date(group.lastMessage.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000 && (
+                {group.lastMessage && new Date(group.lastMessage.timestamp).getTime() > Date.now() - 24 * 60 * 60 * 1000 && (
                   <Box
                     position="absolute"
                     bottom="0"
@@ -167,7 +176,7 @@ const GroupList: React.FC<GroupListProps> = ({
                       fontWeight="500"
                       ml={2}
                     >
-                      {formatTime(group.lastMessage.createdAt)}
+                      {formatTime(group.lastMessage.timestamp)}
                     </Text>
                   )}
                 </Flex>

@@ -1,8 +1,8 @@
 #root {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 2rem;
-    text-align: center;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    text-align: left;
 }
 
 .logo {
@@ -48,7 +48,7 @@
 
 .app-container {
     min-height: 100vh;
-    background: #fafafa;
+    background: #ffffff;
 }
 
 
@@ -63,12 +63,12 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.5);
+    background: rgba(156, 163, 175, 0.5);
     border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.7);
+    background: rgba(156, 163, 175, 0.7);
 }
 
 
@@ -107,20 +107,20 @@
 
 .group-item:hover {
     transform: translateX(2px);
-    border-left-color: #2D3748;
+    border-left-color: #6b7280;
 }
 
 .group-item.selected {
-    background: #f5f5f5;
-    border-left-color: #2D3748;
+    background: #f3f4f6;
+    border-left-color: #6b7280;
 }
 
 
 /* Profile card styles */
 
 .profile-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #374151;
     border-radius: 16px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
@@ -129,7 +129,7 @@
 /* Custom button styles */
 
 .btn-primary {
-    background: linear-gradient(135deg, #2D3748 0%, #1A202C 100%);
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
     border: none;
     border-radius: 8px;
     color: white;
@@ -139,7 +139,7 @@
 
 .btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(45, 55, 72, 0.4);
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
 }
 
 
@@ -161,15 +161,15 @@
         text-shadow: .25em 0 0 rgba(0, 0, 0, 0), .5em 0 0 rgba(0, 0, 0, 0);
     }
     40% {
-        color: #000;
+        color: #6b7280;
         text-shadow: .25em 0 0 rgba(0, 0, 0, 0), .5em 0 0 rgba(0, 0, 0, 0);
     }
     60% {
-        text-shadow: .25em 0 0 #000, .5em 0 0 rgba(0, 0, 0, 0);
+        text-shadow: .25em 0 0 #6b7280, .5em 0 0 rgba(0, 0, 0, 0);
     }
     80%,
     100% {
-        text-shadow: .25em 0 0 #000, .5em 0 0 #000;
+        text-shadow: .25em 0 0 #6b7280, .5em 0 0 #6b7280;
     }
 }
 
@@ -200,7 +200,7 @@
 /* Focus styles for accessibility */
 
 .focus-visible {
-    outline: 2px solid #2D3748;
+    outline: 2px solid #6b7280;
     outline-offset: 2px;
 }
 
