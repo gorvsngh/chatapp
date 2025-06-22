@@ -28,8 +28,8 @@ import {
   DrawerContent,
   DrawerCloseButton,
 } from '@chakra-ui/react';
-import { SearchIcon, AddIcon, SettingsIcon, HamburgerIcon } from '@chakra-ui/icons';
-import { FiMoreVertical, FiUser, FiLogOut, FiSearch, FiUsers, FiMessageCircle, FiMenu } from 'react-icons/fi';
+import { SearchIcon, AddIcon, SettingsIcon } from '@chakra-ui/icons';
+import { FiMoreVertical, FiUser, FiLogOut, FiSearch, FiUsers, FiMessageCircle } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMobile } from '../../contexts/MobileContext';
 import { Group, DirectMessageContact, User } from '../../types';
@@ -90,9 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const headerBg = useColorModeValue('gray.100', 'brand.600');
   const selectedBg = useColorModeValue('brand.50', 'brand.900');
-  const selectedBorderColor = useColorModeValue('brand.200', 'brand.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
-  const messageBg = useColorModeValue('gray.100', 'gray.700');
 
   // Mobile-specific values
   const sidebarWidth = useBreakpointValue({ base: '100%', md: '380px' });

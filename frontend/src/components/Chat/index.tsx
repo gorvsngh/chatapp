@@ -249,7 +249,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
   const isUserCreator = group.createdBy?._id === currentUser._id;
 
   // Member management functions
-  const handleMemberAdd = (groupId: string) => {
+  const handleMemberAdd = () => {
     onUserSearchOpen();
   };
 
@@ -562,7 +562,6 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
         onClose={onGroupInfoClose}
         group={group}
         currentUser={currentUser}
-        canEdit={isUserAdmin || isUserCreator}
         onMemberRemove={handleMemberRemove}
         onMemberAdd={handleMemberAdd}
       />

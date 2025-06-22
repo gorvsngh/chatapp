@@ -11,7 +11,6 @@ import {
   Avatar,
   Text,
   Box,
-  Divider,
   Badge,
   SimpleGrid,
   Card,
@@ -40,7 +39,7 @@ import {
   useDisclosure,
   useToast
 } from '@chakra-ui/react';
-import { FiUsers, FiCalendar, FiBook, FiEdit3, FiUserPlus, FiMoreVertical, FiUserMinus, FiTrash2 } from 'react-icons/fi';
+import { FiUsers, FiCalendar, FiBook, FiEdit3, FiUserPlus, FiMoreVertical, FiUserMinus } from 'react-icons/fi';
 import { Group, User } from '../types';
 
 interface GroupInfoModalProps {
@@ -48,7 +47,6 @@ interface GroupInfoModalProps {
   onClose: () => void;
   group: Group;
   currentUser: User;
-  canEdit?: boolean;
   onMemberRemove?: (groupId: string, memberId: string) => void;
   onMemberAdd?: (groupId: string) => void;
 }
@@ -58,12 +56,9 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   onClose,
   group,
   currentUser,
-  canEdit = false,
   onMemberRemove,
   onMemberAdd
 }) => {
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
   const textColor = useColorModeValue('gray.600', 'gray.300');
   
   const toast = useToast();

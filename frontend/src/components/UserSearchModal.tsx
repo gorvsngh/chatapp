@@ -10,7 +10,6 @@ import {
   Button,
   VStack,
   HStack,
-  Box,
   Text,
   Avatar,
   Badge,
@@ -47,7 +46,6 @@ const UserSearchModal: React.FC<UserSearchModalProps> = ({
   isOpen,
   onClose,
   onUserSelect,
-  currentUser,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -60,7 +58,6 @@ const UserSearchModal: React.FC<UserSearchModalProps> = ({
   });
 
   const toast = useToast();
-  const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
   useEffect(() => {
@@ -83,7 +80,9 @@ const UserSearchModal: React.FC<UserSearchModalProps> = ({
       const response = await userAPI.getAllUsers({
         page: 1,
         limit: 50,
-        ...filters,
+        department: filters.department || undefined,
+        year: filters.year ? parseInt(filters.year) : undefined,
+        role: filters.role || undefined,
       });
       setAllUsers(response.users);
     } catch (error) {

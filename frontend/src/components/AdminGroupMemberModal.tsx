@@ -24,7 +24,6 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
-  Select,
   IconButton,
   Menu,
   MenuButton,

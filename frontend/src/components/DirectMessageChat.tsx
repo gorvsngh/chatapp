@@ -147,7 +147,7 @@ const DirectMessageChat: React.FC<DirectMessageChatProps> = ({
       // Try fallback API method if socket fails
       try {
         console.log('Trying fallback API method...');
-        const sentMessage = await userAPI.sendDirectMessage(otherUser._id, newMessage.trim());
+        const sentMessage = await userAPI.sendDirectMessage(otherUser._id!, newMessage.trim());
         setMessages(prev => [...prev, sentMessage]);
         setNewMessage('');
         onNewMessage?.(sentMessage);

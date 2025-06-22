@@ -24,7 +24,6 @@ const GroupList: React.FC<GroupListProps> = ({
   onGroupSelect,
 }) => {
   const selectedBg = useColorModeValue('brand.50', 'brand.900');
-  const selectedBorderColor = useColorModeValue('brand.200', 'brand.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
   // Sort groups by most recent message timestamp

@@ -90,7 +90,6 @@ const Login: React.FC = () => {
 
                 <FormControl>
                   <Checkbox
-                    {...register('rememberMe')}
                     colorScheme="whatsapp"
                   >
                     Remember me

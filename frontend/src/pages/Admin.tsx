@@ -54,6 +54,12 @@ import {
   NumberIncrementStepper,
   NumberDecrementStepper,
   Icon,
+  Flex,
+  Menu,
+  MenuButton,
+  IconButton,
+  MenuList,
+  MenuItem,
   Spinner,
   Center,
   useColorModeValue,
@@ -281,7 +287,7 @@ const Admin: React.FC = () => {
     if (!selectedUser) return;
 
     try {
-      await adminAPI.updateUser(selectedUser._id, userData);
+      await adminAPI.updateUser(selectedUser._id!, userData);
       toast({
         title: 'User updated successfully',
         status: 'success',
@@ -1491,7 +1497,7 @@ const Admin: React.FC = () => {
                     </VStack>
                   </Box>
 
-                  <Divider orientation={{ base: 'horizontal', lg: 'vertical' }} />
+                  <Divider orientation="vertical" />
 
                   {/* Add New Members */}
                   <Box flex="1">

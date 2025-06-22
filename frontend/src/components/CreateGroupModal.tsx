@@ -18,7 +18,6 @@ import {
   Text,
   Avatar,
   Flex,
-  Badge,
   InputGroup,
   InputLeftElement,
   List,
@@ -52,7 +51,6 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<User[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
   const {
     register,
@@ -71,15 +69,12 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
         return;
       }
 
-      setIsSearching(true);
       try {
         const response = await api.get(`/users/search?q=${encodeURIComponent(searchQuery)}`);
         setSearchResults(response.data);
       } catch (error) {
         console.error('Error searching users:', error);
         setSearchResults([]);
-      } finally {
-        setIsSearching(false);
       }
     };
 
@@ -100,7 +95,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   };
 
   const onSubmit = (data: FormData) => {
-    const memberIds = selectedMembers.map(member => member._id);
+    const memberIds = selectedMembers.map(member => member._id).filter((id): id is string => id !== undefined);
     onCreate({
       ...data,
       members: memberIds,
@@ -274,7 +269,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                               icon={<CloseIcon />}
                               variant="ghost"
                               colorScheme="red"
-                              onClick={() => handleRemoveMember(member._id)}
+                              onClick={() => handleRemoveMember(member._id!)}
                               aria-label="Remove member"
                             />
                           </Flex>

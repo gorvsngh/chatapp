@@ -9,7 +9,6 @@ import {
   useBreakpointValue,
   HStack,
   Avatar,
-  Badge,
 } from '@chakra-ui/react';
 import { HamburgerIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import { useAuth } from '../contexts/AuthContext';

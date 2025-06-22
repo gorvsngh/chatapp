@@ -7,8 +7,7 @@ import {
   Avatar, 
   Badge,
   HStack,
-  useColorModeValue,
-  Divider
+  useColorModeValue
 } from '@chakra-ui/react';
 import { Message, User } from '../../types';
 

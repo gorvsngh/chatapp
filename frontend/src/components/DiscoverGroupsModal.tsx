@@ -10,11 +10,9 @@ import {
   Button,
   VStack,
   HStack,
-  Box,
   Text,
   Avatar,
   Badge,
-  Divider,
   useToast,
   Flex,
   useColorModeValue,
@@ -45,7 +43,6 @@ const DiscoverGroupsModal: React.FC<DiscoverGroupsModalProps> = ({
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null);
   const toast = useToast();
 
-  const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const textColor = useColorModeValue('gray.600', 'gray.300');
 

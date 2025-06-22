@@ -303,7 +303,7 @@ const GroupMemberModal: React.FC<GroupMemberModalProps> = ({
                   </VStack>
                 </Box>
 
-                <Divider orientation={{ base: 'horizontal', lg: 'vertical' }} />
+                <Divider orientation="vertical" />
 
                 <Box flex="1">
                   <Text fontSize="lg" fontWeight="600" mb={4}>
