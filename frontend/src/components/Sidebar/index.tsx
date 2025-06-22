@@ -35,6 +35,7 @@ import { useMobile } from '../../contexts/MobileContext';
 import { Group, DirectMessageContact, User } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import DiscoverGroupsModal from '../DiscoverGroupsModal';
+import ProfileModal from '../ProfileModal';
 
 interface ChatItem {
   id: string;
@@ -83,6 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const { isOpen: isDiscoverOpen, onOpen: onDiscoverOpen, onClose: onDiscoverClose } = useDisclosure();
+  const { isOpen: isProfileOpen, onOpen: onProfileOpen, onClose: onProfileClose } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -308,7 +310,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             spacing={3}
             cursor="pointer"
             onClick={() => {
-              navigate('/profile');
+              onProfileOpen();
               if (isMobile) closeSidebar();
             }}
             _hover={{ opacity: 0.8 }}
@@ -343,7 +345,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               size={buttonSize}
               color="gray.600"
               onClick={() => {
-                onUserSearch();
+                onUserSearch?.();
                 if (isMobile) closeSidebar();
               }}
               _hover={{ bg: 'gray.200' }}
@@ -386,7 +388,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               />
               <MenuList color="gray.800">
                 <MenuItem icon={<FiUser />} onClick={() => {
-                  navigate('/profile');
+                  onProfileOpen();
                   if (isMobile) closeSidebar();
                 }}>
                   Profile
@@ -656,7 +658,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   leftIcon={<FiSearch />}
                   variant="outline"
                   onClick={() => {
-                    onUserSearch();
+                    onUserSearch?.();
                     if (isMobile) closeSidebar();
                   }}
                 >
@@ -700,6 +702,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           onDiscoverClose();
         }}
       />
+      
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={onProfileClose}
+      />
     </Box>
   );
 
@@ -722,6 +729,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SidebarContent />
           </DrawerBody>
         </DrawerContent>
+        
+        <ProfileModal
+          isOpen={isProfileOpen}
+          onClose={onProfileClose}
+        />
       </Drawer>
     );
   }

@@ -264,6 +264,14 @@ const Groups: React.FC = () => {
           group={activeChat.data}
           currentUser={user!}
           onNewMessage={updateGroupLastMessage}
+          onGroupUpdate={(updatedGroup) => {
+            // Update the group in the groups list
+            setGroups(prev => prev.map(g => g._id === updatedGroup._id ? updatedGroup : g));
+            // Update the active chat if it's the same group
+            if (activeChat?.type === 'group' && activeChat.data._id === updatedGroup._id) {
+              setActiveChat({ type: 'group', data: updatedGroup });
+            }
+          }}
         />
       );
     } else {

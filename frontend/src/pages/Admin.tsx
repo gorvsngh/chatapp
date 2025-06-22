@@ -76,8 +76,11 @@ import {
   FiCheck,
   FiX,
   FiAlertCircle,
+  FiUserPlus,
+  FiUserMinus,
+  FiMoreVertical,
 } from 'react-icons/fi';
-import { adminAPI } from '../services/api';
+import { adminAPI, userAPI, groupAPI } from '../services/api';
 import { User, Group, Message } from '../types';
 
 interface DashboardStats {
@@ -112,15 +115,25 @@ const Admin: React.FC = () => {
   // Modals
   const { isOpen: isEditUserOpen, onOpen: onEditUserOpen, onClose: onEditUserClose } = useDisclosure();
   const { isOpen: isEditGroupOpen, onOpen: onEditGroupOpen, onClose: onEditGroupClose } = useDisclosure();
-  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const { 
+    isOpen: isDeleteOpen, 
+    onOpen: onDeleteOpen, 
+    onClose: onDeleteClose 
+  } = useDisclosure();
   const { isOpen: isCreateUserOpen, onOpen: onCreateUserOpen, onClose: onCreateUserClose } = useDisclosure();
   const { isOpen: isUploadOpen, onOpen: onUploadOpen, onClose: onUploadClose } = useDisclosure();
+  const { isOpen: isMemberModalOpen, onOpen: onMemberModalOpen, onClose: onMemberModalClose } = useDisclosure();
 
   // Upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Member management state
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const cancelRef = React.useRef<HTMLButtonElement>(null);
   const cardBg = useColorModeValue('white', 'gray.800');
@@ -307,31 +320,39 @@ const Admin: React.FC = () => {
 
   // Handle delete
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget && !memberToRemove) return;
 
     try {
-      if (deleteTarget.type === 'user') {
-        await adminAPI.deleteUser(deleteTarget.id);
-        loadUsers();
-      } else if (deleteTarget.type === 'group') {
-        await adminAPI.deleteGroup(deleteTarget.id);
-        loadGroups();
-      } else if (deleteTarget.type === 'message') {
-        await adminAPI.deleteMessage(deleteTarget.id);
-        loadMessages();
+      if (memberToRemove && selectedGroup) {
+        // Handle member removal
+        await handleRemoveMember(memberToRemove);
+        setMemberToRemove(null);
+      } else if (deleteTarget) {
+        // Handle other deletions
+        if (deleteTarget.type === 'user') {
+          await adminAPI.deleteUser(deleteTarget.id);
+          loadUsers();
+        } else if (deleteTarget.type === 'group') {
+          await adminAPI.deleteGroup(deleteTarget.id);
+          loadGroups();
+        } else if (deleteTarget.type === 'message') {
+          await adminAPI.deleteMessage(deleteTarget.id);
+          loadMessages();
+        }
+
+        toast({
+          title: `${deleteTarget.type} deleted successfully`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+        setDeleteTarget(null);
       }
 
-      toast({
-        title: `${deleteTarget.type} deleted successfully`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      onDeleteClose();
-      setDeleteTarget(null);
+      handleDeleteClose();
     } catch (error) {
       toast({
-        title: `Error deleting ${deleteTarget.type}`,
+        title: `Error deleting ${deleteTarget?.type || 'member'}`,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -356,6 +377,102 @@ const Admin: React.FC = () => {
       case 'general': return 'gray';
       default: return 'gray';
     }
+  };
+
+  // Member management functions
+  const fetchAllUsers = async () => {
+    try {
+      const response = await userAPI.getAllUsers({ limit: 1000 });
+      setAllUsers(response.users);
+    } catch (error) {
+      toast({
+        title: 'Error fetching users',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleAddMember = async (user: User) => {
+    if (!selectedGroup) return;
+    
+    try {
+      await groupAPI.addMemberToGroup(selectedGroup._id, user._id || user.id || '');
+      
+      // Update the group in the groups list
+      setGroups(prev => prev.map(g => 
+        g._id === selectedGroup._id 
+          ? { ...g, members: [...(g.members || []), user] }
+          : g
+      ));
+
+      // Update selected group
+      setSelectedGroup(prev => prev ? { ...prev, members: [...(prev.members || []), user] } : null);
+
+      toast({
+        title: 'Member added successfully',
+        description: `${user.name} has been added to ${selectedGroup.name}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to add member',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleRemoveMember = async (member: User) => {
+    if (!selectedGroup) return;
+
+    try {
+      await groupAPI.removeMemberFromGroup(selectedGroup._id, member._id || member.id || '');
+      
+      // Update the group in the groups list
+      setGroups(prev => prev.map(g => 
+        g._id === selectedGroup._id 
+          ? { ...g, members: g.members?.filter(m => m._id !== member._id && m._id !== member.id) || [] }
+          : g
+      ));
+
+      // Update selected group
+      setSelectedGroup(prev => prev ? { 
+        ...prev, 
+        members: prev.members?.filter(m => m._id !== member._id && m._id !== member.id) || [] 
+      } : null);
+
+      toast({
+        title: 'Member removed successfully',
+        description: `${member.name} has been removed from ${selectedGroup.name}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to remove member',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const openMemberModal = (group: Group) => {
+    setSelectedGroup(group);
+    fetchAllUsers();
+    onMemberModalOpen();
+  };
+
+  const handleDeleteClose = () => {
+    setMemberToRemove(null);
+    setDeleteTarget(null);
+    onDeleteClose();
   };
 
   useEffect(() => {
@@ -692,6 +809,15 @@ const Admin: React.FC = () => {
                                   <HStack>
                                     <Button
                                       size="sm"
+                                      leftIcon={<Icon as={FiUsers} />}
+                                      colorScheme="blue"
+                                      variant="outline"
+                                      onClick={() => openMemberModal(group)}
+                                    >
+                                      Members
+                                    </Button>
+                                    <Button
+                                      size="sm"
                                       leftIcon={<Icon as={FiEdit} />}
                                       onClick={() => {
                                         setSelectedGroup(group);
@@ -862,23 +988,32 @@ const Admin: React.FC = () => {
       <AlertDialog
         isOpen={isDeleteOpen}
         leastDestructiveRef={cancelRef}
-        onClose={onDeleteClose}
+        onClose={handleDeleteClose}
       >
         <AlertDialogOverlay>
           <AlertDialogContent>
             <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete {deleteTarget?.type}
+              {memberToRemove ? 'Remove Member' : `Delete ${deleteTarget?.type}`}
             </AlertDialogHeader>
             <AlertDialogBody>
-              Are you sure you want to delete "{deleteTarget?.name}"? 
-              This action cannot be undone.
+              {memberToRemove ? (
+                <>
+                  Are you sure you want to remove <strong>{memberToRemove.name}</strong> from{' '}
+                  <strong>{selectedGroup?.name}</strong>? This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to delete "{deleteTarget?.name}"? 
+                  This action cannot be undone.
+                </>
+              )}
             </AlertDialogBody>
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onDeleteClose}>
+              <Button ref={cancelRef} onClick={handleDeleteClose}>
                 Cancel
               </Button>
               <Button colorScheme="red" onClick={handleDelete} ml={3}>
-                Delete
+                {memberToRemove ? 'Remove' : 'Delete'}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1014,6 +1149,191 @@ const Admin: React.FC = () => {
               Upload
             </Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Member Management Modal */}
+      <Modal isOpen={isMemberModalOpen} onClose={onMemberModalClose} size="6xl" scrollBehavior="inside">
+        <ModalOverlay />
+        <ModalContent maxH="90vh">
+          <ModalHeader>
+            Manage Members - {selectedGroup?.name}
+          </ModalHeader>
+          <ModalCloseButton />
+          
+          <ModalBody pb={6}>
+            {selectedGroup && (
+              <VStack spacing={6} align="stretch">
+                <Box
+                  p={3}
+                  bg="orange.50"
+                  border="1px solid"
+                  borderColor="orange.200"
+                  borderRadius="md"
+                >
+                  <Text fontSize="sm" color="orange.700" fontWeight="500">
+                    👨‍💼 Admin Panel: You can add/remove members for this group
+                  </Text>
+                </Box>
+
+                <Flex direction={{ base: 'column', lg: 'row' }} gap={6}>
+                  {/* Current Members */}
+                  <Box flex="1">
+                    <Text fontSize="lg" fontWeight="600" mb={4}>
+                      Current Members ({selectedGroup.members?.length || 0})
+                    </Text>
+                    <VStack spacing={3} align="stretch" maxH="400px" overflowY="auto">
+                      {selectedGroup.members?.map((member) => (
+                        <HStack
+                          key={member._id}
+                          p={3}
+                          bg={cardBg}
+                          border="1px solid"
+                          borderColor={borderColor}
+                          borderRadius="md"
+                          justify="space-between"
+                        >
+                          <HStack flex="1">
+                            <Avatar size="sm" name={member.name} src={member.profilePic} />
+                            <VStack align="start" spacing={0}>
+                              <Text fontWeight="600" fontSize="sm">
+                                {member.name}
+                              </Text>
+                              <HStack spacing={2}>
+                                <Badge
+                                  colorScheme={getRoleBadgeColor(member.role)}
+                                  size="sm"
+                                >
+                                  {member.role}
+                                </Badge>
+                                <Text fontSize="xs" color="gray.500">
+                                  {member.regNo}
+                                </Text>
+                              </HStack>
+                            </VStack>
+                          </HStack>
+                          
+                          <Menu>
+                            <MenuButton
+                              as={IconButton}
+                              aria-label="Member options"
+                              icon={<Icon as={FiMoreVertical} />}
+                              variant="ghost"
+                              size="sm"
+                            />
+                            <MenuList>
+                              <MenuItem 
+                                icon={<Icon as={FiUserMinus} />} 
+                                onClick={() => {
+                                  setMemberToRemove(member);
+                                  onDeleteOpen();
+                                }}
+                                color="red.500"
+                              >
+                                Remove from Group
+                              </MenuItem>
+                            </MenuList>
+                          </Menu>
+                        </HStack>
+                      )) || []}
+                      
+                      {(!selectedGroup.members || selectedGroup.members.length === 0) && (
+                        <Center py={8}>
+                          <Text color="gray.500">No members in this group</Text>
+                        </Center>
+                      )}
+                    </VStack>
+                  </Box>
+
+                  <Divider orientation={{ base: 'horizontal', lg: 'vertical' }} />
+
+                  {/* Add New Members */}
+                  <Box flex="1">
+                    <Text fontSize="lg" fontWeight="600" mb={4}>
+                      Add New Members
+                    </Text>
+                    
+                    <VStack spacing={3} mb={4}>
+                      <InputGroup>
+                        <InputLeftElement>
+                          <Icon as={FiSearch} color="gray.300" />
+                        </InputLeftElement>
+                        <Input
+                          placeholder="Search by name, email, or reg no..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </InputGroup>
+                    </VStack>
+
+                    <VStack spacing={3} align="stretch" maxH="400px" overflowY="auto">
+                      {allUsers
+                        .filter(user => {
+                          // Exclude current members
+                          const isMember = selectedGroup.members?.some(member => 
+                            member._id === user._id || member._id === user.id
+                          );
+                          if (isMember) return false;
+
+                          // Apply search filter
+                          if (searchQuery.trim()) {
+                            const query = searchQuery.toLowerCase();
+                            return (
+                              user.name.toLowerCase().includes(query) ||
+                              user.email.toLowerCase().includes(query) ||
+                              (user.regNo && user.regNo.toLowerCase().includes(query))
+                            );
+                          }
+                          return true;
+                        })
+                        .map((user) => (
+                          <HStack
+                            key={user._id}
+                            p={3}
+                            bg={cardBg}
+                            border="1px solid"
+                            borderColor={borderColor}
+                            borderRadius="md"
+                            justify="space-between"
+                          >
+                            <HStack flex="1">
+                              <Avatar size="sm" name={user.name} src={user.profilePic} />
+                              <VStack align="start" spacing={0}>
+                                <Text fontWeight="600" fontSize="sm">
+                                  {user.name}
+                                </Text>
+                                <HStack spacing={2}>
+                                  <Badge
+                                    colorScheme={getRoleBadgeColor(user.role)}
+                                    size="sm"
+                                  >
+                                    {user.role}
+                                  </Badge>
+                                  <Text fontSize="xs" color="gray.500">
+                                    {user.regNo}
+                                  </Text>
+                                </HStack>
+                              </VStack>
+                            </HStack>
+                            
+                            <Button
+                              leftIcon={<Icon as={FiUserPlus} />}
+                              size="sm"
+                              colorScheme="blue"
+                              variant="outline"
+                              onClick={() => handleAddMember(user)}
+                            >
+                              Add
+                            </Button>
+                          </HStack>
+                        ))
+                      }
+                    </VStack>
+                  </Box>
+                </Flex>
+              </VStack>
+            )}
+          </ModalBody>
         </ModalContent>
       </Modal>
     </Box>

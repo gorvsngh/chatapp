@@ -24,6 +24,7 @@ import { FiSend, FiMoreVertical, FiInfo, FiUsers } from 'react-icons/fi';
 import { Group, Message, User } from '../../types';
 import MessageList from './MessageList';
 import GroupInfoModal from '../GroupInfoModal';
+import UserSearchModal from '../UserSearchModal';
 import socketService from '../../services/socket';
 import { groupAPI } from '../../services/api';
 
@@ -31,14 +32,16 @@ interface ChatProps {
   group: Group;
   currentUser: User;
   onNewMessage?: (groupId: string, message: Message) => void;
+  onGroupUpdate?: (updatedGroup: Group) => void;
 }
 
-const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
+const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUpdate }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const { isOpen: isGroupInfoOpen, onOpen: onGroupInfoOpen, onClose: onGroupInfoClose } = useDisclosure();
+  const { isOpen: isUserSearchOpen, onOpen: onUserSearchOpen, onClose: onUserSearchClose } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -81,7 +84,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
       } else {
         console.log('Message belongs to different group, but still updating parent');
         // Update parent groups state even if message belongs to different group
-        if (onNewMessage) {
+        if (onNewMessage && newMessage.groupId) {
           onNewMessage(newMessage.groupId, newMessage);
         }
       }
@@ -143,7 +146,9 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
         return;
     }
 
-    socketService.sendMessage(group._id, currentUser._id, message);
+    if (group._id && currentUser._id) {
+      socketService.sendMessage(group._id, currentUser._id, message);
+    }
     setMessage('');
   };
 
@@ -182,6 +187,95 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
 
   const isUserAdmin = group.admins?.some(admin => admin._id === currentUser._id) || false;
   const isUserCreator = group.createdBy?._id === currentUser._id;
+
+  // Member management functions
+  const handleMemberAdd = (groupId: string) => {
+    onUserSearchOpen();
+  };
+
+  const handleMemberRemove = async (groupId: string, memberId: string) => {
+    try {
+      await groupAPI.removeMemberFromGroup(groupId, memberId);
+      
+      // Update the group state locally
+      const updatedGroup = {
+        ...group,
+        members: group.members?.filter(member => member._id !== memberId) || []
+      };
+      
+      if (onGroupUpdate) {
+        onGroupUpdate(updatedGroup);
+      }
+      
+      toast({
+        title: 'Member removed successfully',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to remove member',
+        description: 'Please try again later.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleUserSelect = async (selectedUser: User) => {
+    try {
+      if (!group._id) return;
+      
+      // Check if user is already a member
+      const isAlreadyMember = group.members?.some(
+        member => member._id === selectedUser._id || member._id === selectedUser.id
+      );
+      
+      if (isAlreadyMember) {
+        toast({
+          title: 'User already a member',
+          description: `${selectedUser.name} is already in this group.`,
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
+        onUserSearchClose();
+        return;
+      }
+      
+      await groupAPI.addMemberToGroup(group._id, selectedUser._id || selectedUser.id || '');
+      
+      // Update the group state locally
+      const updatedGroup = {
+        ...group,
+        members: [...(group.members || []), selectedUser]
+      };
+      
+      if (onGroupUpdate) {
+        onGroupUpdate(updatedGroup);
+      }
+      
+      onUserSearchClose();
+      
+      toast({
+        title: 'Member added successfully',
+        description: `${selectedUser.name} has been added to the group.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to add member',
+        description: 'Please try again later.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
 
   return (
     <Box h="100%" w="100%" bg={chatBg} display="flex" flexDirection="column">
@@ -392,6 +486,16 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
         group={group}
         currentUser={currentUser}
         canEdit={isUserAdmin || isUserCreator}
+        onMemberRemove={handleMemberRemove}
+        onMemberAdd={handleMemberAdd}
+      />
+
+      {/* User Search Modal for Adding Members */}
+      <UserSearchModal
+        isOpen={isUserSearchOpen}
+        onClose={onUserSearchClose}
+        onUserSelect={handleUserSelect}
+        currentUser={currentUser}
       />
     </Box>
   );

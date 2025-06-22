@@ -79,6 +79,14 @@ export const groupAPI = {
     const response = await api.post(`/groups/${groupId}/leave`);
     return response.data;
   },
+  addMemberToGroup: async (groupId: string, userId: string): Promise<{ msg: string; group: Group }> => {
+    const response = await api.post(`/groups/${groupId}/members`, { userId });
+    return response.data;
+  },
+  removeMemberFromGroup: async (groupId: string, userId: string): Promise<{ msg: string; group: Group }> => {
+    const response = await api.delete(`/groups/${groupId}/members/${userId}`);
+    return response.data;
+  },
 };
 
 export const adminAPI = {

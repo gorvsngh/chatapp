@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -26,9 +26,21 @@ import {
   StatHelpText,
   AvatarGroup,
   Button,
-  Spacer
+  Spacer,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  AlertDialog,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
+  useDisclosure,
+  useToast
 } from '@chakra-ui/react';
-import { FiUsers, FiCalendar, FiBook, FiEdit3, FiUserPlus, FiMoreVertical } from 'react-icons/fi';
+import { FiUsers, FiCalendar, FiBook, FiEdit3, FiUserPlus, FiMoreVertical, FiUserMinus, FiTrash2 } from 'react-icons/fi';
 import { Group, User } from '../types';
 
 interface GroupInfoModalProps {
@@ -37,6 +49,8 @@ interface GroupInfoModalProps {
   group: Group;
   currentUser: User;
   canEdit?: boolean;
+  onMemberRemove?: (groupId: string, memberId: string) => void;
+  onMemberAdd?: (groupId: string) => void;
 }
 
 const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
@@ -44,11 +58,18 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   onClose,
   group,
   currentUser,
-  canEdit = false
+  canEdit = false,
+  onMemberRemove,
+  onMemberAdd
 }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const textColor = useColorModeValue('gray.600', 'gray.300');
+  
+  const toast = useToast();
+  const { isOpen: isRemoveAlertOpen, onOpen: onRemoveAlertOpen, onClose: onRemoveAlertClose } = useDisclosure();
+  const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -84,8 +105,40 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
     }
   };
 
-  const isAdmin = group.admins?.some(admin => admin._id === currentUser._id) || false;
+  const isGroupAdmin = group.admins?.some(admin => admin._id === currentUser._id) || false;
   const isCreator = group.createdBy?._id === currentUser._id;
+  const isSystemAdmin = currentUser.role === 'admin';
+  const isHOD = currentUser.role === 'hod';
+  
+  // Admin and HOD can manage all groups, group admins can manage their groups
+  const canManageMembers = isSystemAdmin || isHOD || isGroupAdmin || isCreator;
+
+  const handleRemoveMember = (member: User) => {
+    if (!canManageMembers) return;
+    setMemberToRemove(member);
+    onRemoveAlertOpen();
+  };
+
+  const confirmRemoveMember = () => {
+    if (memberToRemove && onMemberRemove && memberToRemove._id) {
+      onMemberRemove(group._id, memberToRemove._id);
+      toast({
+        title: 'Member removed',
+        description: `${memberToRemove.name} has been removed from the group.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+    setMemberToRemove(null);
+    onRemoveAlertClose();
+  };
+
+  const handleAddMember = () => {
+    if (onMemberAdd) {
+      onMemberAdd(group._id);
+    }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
@@ -95,7 +148,7 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
           <Flex align="center">
             <Text>Group Info</Text>
             <Spacer />
-            {(isAdmin || isCreator) && (
+            {canManageMembers && (
               <IconButton
                 aria-label="More options"
                 icon={<FiMoreVertical />}
@@ -109,6 +162,22 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
         
         <ModalBody pb={6}>
           <VStack spacing={6} align="stretch">
+            {/* Admin/HOD Management Notice */}
+            {(isSystemAdmin || isHOD) && (
+              <Box
+                p={3}
+                bg="orange.50"
+                border="1px solid"
+                borderColor="orange.200"
+                borderRadius="md"
+                w="full"
+              >
+                <Text fontSize="sm" color="orange.700" fontWeight="500">
+                  {isSystemAdmin ? '👨‍💼 Admin Privileges' : '🏢 HOD Privileges'}: You can add/remove members from this group
+                </Text>
+              </Box>
+            )}
+            
             {/* Group Header */}
             <Card>
               <CardBody>
@@ -135,12 +204,17 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                     </Badge>
                   </VStack>
 
-                  {(isAdmin || isCreator) && (
+                  {canManageMembers && (
                     <HStack spacing={2}>
                       <Button size="sm" leftIcon={<FiEdit3 />} variant="outline">
                         Edit Info
                       </Button>
-                      <Button size="sm" leftIcon={<FiUserPlus />} variant="outline">
+                      <Button 
+                        size="sm" 
+                        leftIcon={<FiUserPlus />} 
+                        variant="outline"
+                        onClick={handleAddMember}
+                      >
                         Add Member
                       </Button>
                     </HStack>
@@ -301,36 +375,71 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                   
                   <VStack spacing={3} align="stretch" maxH="300px" overflowY="auto">
                     {group.members?.map((member) => (
-                      <HStack key={member._id}>
-                        <Avatar
-                          size="md"
-                          name={member.name}
-                          src={member.profilePic}
-                        />
-                        <VStack align="start" spacing={0} flex="1">
-                          <HStack>
-                            <Text fontWeight="600" fontSize="sm" color="gray.800">
-                              {member.name}
-                            </Text>
-                            {member._id === currentUser._id && (
-                              <Badge colorScheme="gray" size="sm">
-                                You
+                      <HStack key={member._id} justify="space-between">
+                        <HStack flex="1">
+                          <Avatar
+                            size="md"
+                            name={member.name}
+                            src={member.profilePic}
+                          />
+                          <VStack align="start" spacing={0} flex="1">
+                            <HStack>
+                              <Text fontWeight="600" fontSize="sm" color="gray.800">
+                                {member.name}
+                              </Text>
+                              {member._id === currentUser._id && (
+                                <Badge colorScheme="gray" size="sm">
+                                  You
+                                </Badge>
+                              )}
+                              {/* Show admin badges */}
+                              {isCreator && member._id === group.createdBy?._id && (
+                                <Badge colorScheme="green" size="sm">
+                                  Creator
+                                </Badge>
+                              )}
+                              {isGroupAdmin && group.admins?.some(admin => admin._id === member._id) && member._id !== group.createdBy?._id && (
+                                <Badge colorScheme="blue" size="sm">
+                                  Admin
+                                </Badge>
+                              )}
+                            </HStack>
+                            <HStack spacing={2}>
+                              <Badge
+                                colorScheme={member.role === 'admin' ? 'red' : member.role === 'hod' ? 'purple' : member.role === 'teacher' ? 'blue' : 'green'}
+                                size="sm"
+                                variant="subtle"
+                              >
+                                {member.role}
                               </Badge>
-                            )}
-                          </HStack>
-                          <HStack spacing={2}>
-                            <Badge
-                              colorScheme={member.role === 'admin' ? 'red' : member.role === 'hod' ? 'purple' : member.role === 'teacher' ? 'blue' : 'green'}
+                              <Text fontSize="xs" color={textColor}>
+                                {member.email}
+                              </Text>
+                            </HStack>
+                          </VStack>
+                        </HStack>
+                        
+                        {/* Member Actions - Only show for admin/HOD and not for themselves */}
+                        {canManageMembers && member._id !== currentUser._id && (
+                          <Menu>
+                            <MenuButton
+                              as={IconButton}
+                              aria-label="Member options"
+                              icon={<FiMoreVertical />}
+                              variant="ghost"
                               size="sm"
-                              variant="subtle"
-                            >
-                              {member.role}
-                            </Badge>
-                            <Text fontSize="xs" color={textColor}>
-                              {member.email}
-                            </Text>
-                          </HStack>
-                        </VStack>
+                            />
+                            <MenuList>
+                              <MenuItem 
+                                icon={<FiUserMinus />} 
+                                onClick={() => handleRemoveMember(member)}
+                                color="red.500"
+                              >
+                                Remove from Group
+                              </MenuItem>
+                            </MenuList>
+                          </Menu>
+                        )}
                       </HStack>
                     )) || []}
                   </VStack>
@@ -340,6 +449,35 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
           </VStack>
         </ModalBody>
       </ModalContent>
+      
+      {/* Remove Member Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isRemoveAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onRemoveAlertClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Remove Member
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to remove <strong>{memberToRemove?.name}</strong> from this group? 
+              This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onRemoveAlertClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={confirmRemoveMember} ml={3}>
+                Remove
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Modal>
   );
 };
