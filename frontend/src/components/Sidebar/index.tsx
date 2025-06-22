@@ -19,11 +19,19 @@ import {
   HStack,
   Button,
   useDisclosure,
-  AvatarGroup
+  AvatarGroup,
+  useBreakpointValue,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
 } from '@chakra-ui/react';
-import { SearchIcon, AddIcon, SettingsIcon } from '@chakra-ui/icons';
-import { FiMoreVertical, FiUser, FiLogOut, FiSearch, FiUsers, FiMessageCircle } from 'react-icons/fi';
+import { SearchIcon, AddIcon, SettingsIcon, HamburgerIcon } from '@chakra-ui/icons';
+import { FiMoreVertical, FiUser, FiLogOut, FiSearch, FiUsers, FiMessageCircle, FiMenu } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMobile } from '../../contexts/MobileContext';
 import { Group, DirectMessageContact, User } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import DiscoverGroupsModal from '../DiscoverGroupsModal';
@@ -71,6 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onUserSearch,
 }) => {
   const { user, logout } = useAuth();
+  const { isMobile, isSidebarOpen, closeSidebar } = useMobile();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const { isOpen: isDiscoverOpen, onOpen: onDiscoverOpen, onClose: onDiscoverClose } = useDisclosure();
@@ -82,6 +91,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const selectedBorderColor = useColorModeValue('brand.200', 'brand.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const messageBg = useColorModeValue('gray.100', 'gray.700');
+
+  // Mobile-specific values
+  const sidebarWidth = useBreakpointValue({ base: '100%', md: '380px' });
+  const avatarSize = useBreakpointValue({ base: 'sm', md: 'md' });
+  const buttonSize = useBreakpointValue({ base: 'mobile', md: 'sm' });
+  const inputSize = useBreakpointValue({ base: 'mobile', md: 'md' });
 
   // Convert groups and direct contacts to unified chat items
   const allChatItems: ChatItem[] = React.useMemo(() => {
@@ -219,33 +234,30 @@ const Sidebar: React.FC<SidebarProps> = ({
   const formatGroupType = (type: Group['type']) => {
     switch (type) {
       case 'department':
-        return 'DEPT';
+        return 'Department';
       case 'class':
-        return 'CLASS';
+        return 'Class';
       case 'general':
-        return 'GEN';
+        return 'General';
       default:
-        return 'GEN';
+        return type;
     }
   };
 
   const getLastMessagePreview = (item: ChatItem) => {
     if (!item.lastMessage) {
-      if (item.type === 'group') {
-        return (item.data as Group).description || 'No messages yet';
-      } else {
-        return 'Start your conversation';
-      }
+      return item.type === 'group' ? 'No messages yet' : 'Start a conversation';
     }
     
-    const messageText = item.lastMessage.text;
-    const senderName = item.lastMessage.senderName || '';
+    const prefix = item.lastMessage.senderName ? `${item.lastMessage.senderName}: ` : '';
+    const text = item.lastMessage.text;
+    const maxLength = isMobile ? 30 : 50;
     
-    if (messageText.length > 35) {
-      return `${senderName}: ${messageText.substring(0, 35)}...`;
+    if (text.length <= maxLength) {
+      return prefix + text;
     }
     
-    return `${senderName}: ${messageText}`;
+    return prefix + text.substring(0, maxLength) + '...';
   };
 
   const handleItemClick = (item: ChatItem) => {
@@ -253,6 +265,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       onGroupSelect(item.data as Group);
     } else {
       onDirectUserSelect(item.data as User);
+    }
+    
+    // Close sidebar on mobile after selection
+    if (isMobile) {
+      closeSidebar();
     }
   };
 
@@ -264,21 +281,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  return (
+  const SidebarContent = () => (
     <Box
-      w="380px"
+      w={sidebarWidth}
       h="100%"
       bg={bgColor}
-      borderRight="1px"
+      borderRight={isMobile ? "none" : "1px"}
       borderColor={borderColor}
-      shadow="sm"
+      shadow={isMobile ? "mobile-lg" : "sm"}
       display="flex"
       flexDirection="column"
       flexShrink={0}
+      data-sidebar
     >
       {/* Header */}
       <Box
-        p={4}
+        p={isMobile ? 3 : 4}
         bg={headerBg}
         color="gray.800"
         flexShrink={0}
@@ -289,12 +307,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           <HStack 
             spacing={3}
             cursor="pointer"
-            onClick={() => navigate('/profile')}
+            onClick={() => {
+              navigate('/profile');
+              if (isMobile) closeSidebar();
+            }}
             _hover={{ opacity: 0.8 }}
             transition="opacity 0.2s"
           >
             <Avatar
-              size="sm"
+              size={avatarSize}
               name={user?.name}
               src={user?.profilePic}
               border="2px solid"
@@ -319,18 +340,24 @@ const Sidebar: React.FC<SidebarProps> = ({
               aria-label="Find people"
               icon={<FiSearch />}
               variant="ghost"
-              size="sm"
+              size={buttonSize}
               color="gray.600"
-              onClick={onUserSearch}
+              onClick={() => {
+                onUserSearch();
+                if (isMobile) closeSidebar();
+              }}
               _hover={{ bg: 'gray.200' }}
             />
             <IconButton
               aria-label="Discover groups"
               icon={<FiUsers />}
               variant="ghost"
-              size="sm"
+              size={buttonSize}
               color="gray.600"
-              onClick={onDiscoverOpen}
+              onClick={() => {
+                onDiscoverOpen();
+                if (isMobile) closeSidebar();
+              }}
               _hover={{ bg: 'gray.200' }}
             />
             {(user?.role === 'hod' || user?.role === 'admin') && (
@@ -338,9 +365,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                 aria-label="Create group"
                 icon={<AddIcon />}
                 variant="ghost"
-                size="sm"
+                size={buttonSize}
                 color="gray.600"
-                onClick={onCreateGroup}
+                onClick={() => {
+                  onCreateGroup?.();
+                  if (isMobile) closeSidebar();
+                }}
                 _hover={{ bg: 'gray.200' }}
               />
             )}
@@ -350,19 +380,25 @@ const Sidebar: React.FC<SidebarProps> = ({
                 aria-label="Options"
                 icon={<FiMoreVertical />}
                 variant="ghost"
-                size="sm"
+                size={buttonSize}
                 color="gray.600"
                 _hover={{ bg: 'gray.200' }}
               />
               <MenuList color="gray.800">
-                <MenuItem icon={<FiUser />} onClick={() => navigate('/profile')}>
+                <MenuItem icon={<FiUser />} onClick={() => {
+                  navigate('/profile');
+                  if (isMobile) closeSidebar();
+                }}>
                   Profile
                 </MenuItem>
                 <MenuItem icon={<SettingsIcon />}>
                   Settings
                 </MenuItem>
                 {user?.role === 'admin' && (
-                  <MenuItem icon={<SettingsIcon />} onClick={() => navigate('/admin')}>
+                  <MenuItem icon={<SettingsIcon />} onClick={() => {
+                    navigate('/admin');
+                    if (isMobile) closeSidebar();
+                  }}>
                     Admin Panel
                   </MenuItem>
                 )}
@@ -381,7 +417,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </Box>
 
       {/* Search */}
-      <Box p={4} pb={2} flexShrink={0}>
+      <Box p={isMobile ? 3 : 4} pb={2} flexShrink={0}>
         <InputGroup>
           <InputLeftElement pointerEvents="none">
             <SearchIcon color="gray.400" />
@@ -401,12 +437,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             borderRadius="lg"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            size={inputSize}
           />
         </InputGroup>
       </Box>
 
       {/* Filter/Status Bar */}
-      <Box px={4} pb={2} flexShrink={0}>
+      <Box px={isMobile ? 3 : 4} pb={2} flexShrink={0}>
         <HStack spacing={2} justify="space-between">
           <Text fontSize="xs" color="gray.500" fontWeight="500">
             {filteredAndSortedItems.length} of {allChatItems.length} chats
@@ -456,14 +493,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             return (
               <Box
                 key={item.id}
-                p={3}
+                p={isMobile ? 4 : 3}
                 cursor="pointer"
                 bg={isSelected ? selectedBg : 'transparent'}
                 borderLeft={isSelected ? '3px solid' : '3px solid transparent'}
                 borderLeftColor={isSelected ? 'brand.500' : 'transparent'}
                 _hover={{ 
                   bg: isSelected ? selectedBg : hoverBg,
-                  transform: 'translateX(2px)',
+                  transform: isMobile ? 'none' : 'translateX(2px)',
                   transition: 'all 0.2s ease-in-out'
                 }}
                 onClick={() => handleItemClick(item)}
@@ -472,12 +509,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 transition="all 0.2s ease-in-out"
                 position="relative"
                 w="100%"
+                minH={isMobile ? "60px" : "auto"}
               >
                 <Flex>
                   <Box position="relative">
                     {item.type === 'group' ? (
                       <Avatar
-                        size="md"
+                        size={avatarSize}
                         name={item.name}
                         mr={3}
                         border={isSelected ? '2px solid' : '2px solid transparent'}
@@ -485,7 +523,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       />
                     ) : (
                       <Avatar
-                        size="md"
+                        size={avatarSize}
                         name={item.name}
                         src={item.avatar}
                         mr={3}
@@ -617,7 +655,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                   size="sm"
                   leftIcon={<FiSearch />}
                   variant="outline"
-                  onClick={onUserSearch}
+                  onClick={() => {
+                    onUserSearch();
+                    if (isMobile) closeSidebar();
+                  }}
                 >
                   Find People
                 </Button>
@@ -625,7 +666,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                   size="sm"
                   leftIcon={<FiUsers />}
                   variant="outline"
-                  onClick={onDiscoverOpen}
+                  onClick={() => {
+                    onDiscoverOpen();
+                    if (isMobile) closeSidebar();
+                  }}
                 >
                   Discover Groups
                 </Button>
@@ -634,7 +678,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                     size="sm"
                     leftIcon={<AddIcon />}
                     variant="outline"
-                    onClick={onCreateGroup}
+                    onClick={() => {
+                      onCreateGroup?.();
+                      if (isMobile) closeSidebar();
+                    }}
                   >
                     Create Group
                   </Button>
@@ -655,6 +702,31 @@ const Sidebar: React.FC<SidebarProps> = ({
       />
     </Box>
   );
+
+  // Render as Drawer on mobile, regular sidebar on desktop
+  if (isMobile) {
+    return (
+      <Drawer
+        isOpen={isSidebarOpen}
+        placement="left"
+        onClose={closeSidebar}
+        size="full"
+      >
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottomWidth="1px">
+            <Text fontSize="lg" fontWeight="600">Chats</Text>
+          </DrawerHeader>
+          <DrawerBody p={0}>
+            <SidebarContent />
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return <SidebarContent />;
 };
 
 export default Sidebar; 

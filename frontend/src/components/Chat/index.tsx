@@ -17,7 +17,8 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  useDisclosure
+  useDisclosure,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { FiSend, FiMoreVertical, FiInfo, FiUsers } from 'react-icons/fi';
 import { Group, Message, User } from '../../types';
@@ -44,9 +45,19 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
   const inputBg = useColorModeValue('white', 'gray.700');
   const chatBg = useColorModeValue('white', 'gray.900');
 
+  // Mobile-specific values
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
+  const headerPadding = useBreakpointValue({ base: 3, md: 4 });
+  const inputPadding = useBreakpointValue({ base: 3, md: 4 });
+  const avatarSize = useBreakpointValue({ base: 'sm', md: 'md' });
+  const buttonSize = useBreakpointValue({ base: 'mobile', md: 'sm' });
+  const inputSize = useBreakpointValue({ base: 'mobile', md: 'lg' });
+
   useEffect(() => {
     // Join the new group's socket room
-    socketService.joinGroup(group._id);
+    if (group._id) {
+      socketService.joinGroup(group._id);
+    }
 
     // Set up message listener
     const unsubscribe = socketService.onMessage((newMessage) => {
@@ -82,7 +93,9 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
     // Cleanup on component unmount or group change
     return () => {
       unsubscribe();
-      socketService.leaveGroup(group._id);
+      if (group._id) {
+        socketService.leaveGroup(group._id);
+      }
     };
   }, [group._id]);
 
@@ -93,6 +106,10 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
 
   const fetchMessages = async () => {
     try {
+      if (!group._id) {
+        console.error('Group ID is undefined');
+        return;
+      }
       const fetchedMessages = await groupAPI.getGroupMessages(group._id);
       setMessages(fetchedMessages);
       scrollToBottom();
@@ -168,126 +185,128 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
 
   return (
     <Box h="100%" w="100%" bg={chatBg} display="flex" flexDirection="column">
-      {/* Chat Header */}
-      <Box
-        bg={bgColor}
-        borderBottom="1px"
-        borderColor={borderColor}
-        shadow="sm"
-        flexShrink={0}
-        w="100%"
-      >
-        <Flex
-          p={4}
-          alignItems="center"
-          cursor="pointer"
-          onClick={onGroupInfoOpen}
-          _hover={{ bg: 'gray.50' }}
-          transition="background 0.2s"
+      {/* Chat Header - Only show on desktop since mobile has its own header */}
+      {!isMobile && (
+        <Box
+          bg={bgColor}
+          borderBottom="1px"
+          borderColor={borderColor}
+          shadow="sm"
+          flexShrink={0}
+          w="100%"
         >
-          <Avatar
-            size="md"
-            name={group.name}
-            mr={4}
-            border="2px solid"
-            borderColor="gray.200"
-          />
-          
-          <Box flex="1" minW="0">
-            <HStack spacing={2} mb={1}>
-              <Text fontWeight="700" fontSize="lg" color="gray.800" noOfLines={1}>
-                {group.name}
-              </Text>
-              <Badge
-                colorScheme={getGroupTypeColor(group.type)}
-                fontSize="xs"  
-                px={2}
-                py={0.5}
-                borderRadius="full"
-                variant="subtle"
-              >
-                {formatGroupType(group.type)}
-              </Badge>
-            </HStack>
-            
-            <HStack spacing={3}>
-              <HStack spacing={1}>
-                <AvatarGroup size="xs" max={4}>
-                  {group.members?.slice(0, 4).map((member) => (
-                    <Avatar
-                      key={member._id}
-                      name={member.name}
-                      src={member.profilePic}
-                      size="xs"
-                    />
-                  )) || []}
-                </AvatarGroup>
-                <Text fontSize="sm" color="gray.500" fontWeight="500">
-                  {group.members?.length || 0} members
-                </Text>
-              </HStack>
-              
-              {group.department && (
-                <>
-                  <Text fontSize="sm" color="gray.300">•</Text>
-                  <Text fontSize="sm" color="gray.500">
-                    {group.department}
-                    {group.year && ` • Year ${group.year}`}
-                  </Text>
-                </>
-              )}
-            </HStack>
-          </Box>
-
-          <HStack spacing={2}>
-            <IconButton
-              aria-label="Group info"
-              icon={<FiInfo />}
-              variant="ghost"
-              size="sm"
-              color="gray.600"
-              _hover={{ bg: 'gray.100', color: 'brand.600' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onGroupInfoOpen();
-              }}
+          <Flex
+            p={headerPadding}
+            alignItems="center"
+            cursor="pointer"
+            onClick={onGroupInfoOpen}
+            _hover={{ bg: 'gray.50' }}
+            transition="background 0.2s"
+          >
+            <Avatar
+              size={avatarSize}
+              name={group.name}
+              mr={4}
+              border="2px solid"
+              borderColor="gray.200"
             />
             
-            <Menu>
-              <MenuButton
-                as={IconButton}
-                aria-label="More options"
-                icon={<FiMoreVertical />}
-                variant="ghost"
-                size="sm"
-                color="gray.600"
-                _hover={{ bg: 'gray.100', color: 'brand.600' }}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <MenuList>
-                <MenuItem icon={<FiInfo />} onClick={onGroupInfoOpen}>
-                  Group Info
-                </MenuItem>
-                <MenuItem icon={<FiUsers />}>
-                  View Members
-                </MenuItem>
-                {(isUserAdmin || isUserCreator) && (
+            <Box flex="1" minW="0">
+              <HStack spacing={2} mb={1}>
+                <Text fontWeight="700" fontSize="lg" color="gray.800" noOfLines={1}>
+                  {group.name}
+                </Text>
+                <Badge
+                  colorScheme={getGroupTypeColor(group.type)}
+                  fontSize="xs"  
+                  px={2}
+                  py={0.5}
+                  borderRadius="full"
+                  variant="subtle"
+                >
+                  {formatGroupType(group.type)}
+                </Badge>
+              </HStack>
+              
+              <HStack spacing={3}>
+                <HStack spacing={1}>
+                  <AvatarGroup size="xs" max={4}>
+                    {group.members?.slice(0, 4).map((member) => (
+                      <Avatar
+                        key={member._id}
+                        name={member.name}
+                        src={member.profilePic}
+                        size="xs"
+                      />
+                    )) || []}
+                  </AvatarGroup>
+                  <Text fontSize="sm" color="gray.500" fontWeight="500">
+                    {group.members?.length || 0} members
+                  </Text>
+                </HStack>
+                
+                {group.department && (
                   <>
-                    <MenuItem>Group Settings</MenuItem>
-                    <MenuItem>Manage Members</MenuItem>
+                    <Text fontSize="sm" color="gray.300">•</Text>
+                    <Text fontSize="sm" color="gray.500">
+                      {group.department}
+                      {group.year && ` • Year ${group.year}`}
+                    </Text>
                   </>
                 )}
-              </MenuList>
-            </Menu>
-          </HStack>
-        </Flex>
-      </Box>
+              </HStack>
+            </Box>
+
+            <HStack spacing={2}>
+              <IconButton
+                aria-label="Group info"
+                icon={<FiInfo />}
+                variant="ghost"
+                size={buttonSize}
+                color="gray.600"
+                _hover={{ bg: 'gray.100', color: 'brand.600' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onGroupInfoOpen();
+                }}
+              />
+              
+              <Menu>
+                <MenuButton
+                  as={IconButton}
+                  aria-label="More options"
+                  icon={<FiMoreVertical />}
+                  variant="ghost"
+                  size={buttonSize}
+                  color="gray.600"
+                  _hover={{ bg: 'gray.100', color: 'brand.600' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <MenuList>
+                  <MenuItem icon={<FiInfo />} onClick={onGroupInfoOpen}>
+                    Group Info
+                  </MenuItem>
+                  <MenuItem icon={<FiUsers />}>
+                    View Members
+                  </MenuItem>
+                  {(isUserAdmin || isUserCreator) && (
+                    <>
+                      <MenuItem>Group Settings</MenuItem>
+                      <MenuItem>Manage Members</MenuItem>
+                    </>
+                  )}
+                </MenuList>
+              </Menu>
+            </HStack>
+          </Flex>
+        </Box>
+      )}
 
       {/* Messages Area */}
       <Box
         flex="1"
         overflowY="auto"
-        p={2}
+        p={isMobile ? 2 : 2}
         w="100%"
         css={{
           '&::-webkit-scrollbar': {
@@ -314,14 +333,14 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
 
       {/* Message Input */}
       <Box
-        p={4}
+        p={inputPadding}
         bg={bgColor}
         borderTop="1px"
         borderColor={borderColor}
         flexShrink={0}
         w="100%"
       >
-        <InputGroup size="lg">
+        <InputGroup size={inputSize}>
           <Input
             pr="4.5rem"
             placeholder="Type a message..."
@@ -331,18 +350,19 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
             bg={inputBg}
             border="1px solid"
             borderColor="gray.300"
-            borderRadius="full"
+            borderRadius={isMobile ? "full" : "full"}
             _focus={{
               borderColor: 'brand.400',
               boxShadow: '0 0 0 1px rgba(107, 114, 128, 0.2)'
             }}
             _hover={{ borderColor: 'gray.400' }}
-            fontSize="md"
+            fontSize={isMobile ? "16px" : "md"}
+            variant={isMobile ? "mobile" : "outline"}
           />
           <InputRightElement width="4.5rem">
             <IconButton
-              h="2.5rem"
-              w="2.5rem"
+              h={isMobile ? "2.5rem" : "2.5rem"}
+              w={isMobile ? "2.5rem" : "2.5rem"}
               borderRadius="full"
               aria-label="Send message"
               icon={<FiSend />}
@@ -351,14 +371,15 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage }) => {
               color="white"
               _hover={{
                 bg: 'brand.600',
-                transform: 'scale(1.05)'
+                transform: isMobile ? 'scale(1.05)' : 'scale(1.05)'
               }}
               _active={{
                 bg: 'brand.700',
-                transform: 'scale(0.95)'
+                transform: isMobile ? 'scale(0.95)' : 'scale(0.95)'
               }}
               isDisabled={!message.trim()}
               transition="all 0.2s"
+              size={isMobile ? "mobile" : "md"}
             />
           </InputRightElement>
         </InputGroup>

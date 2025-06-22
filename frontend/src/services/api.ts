@@ -19,6 +19,26 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Add response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear localStorage and redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authAPI = {
   login: async (data: LoginFormData): Promise<AuthResponse> => {
     const response = await api.post('/auth/login', data);

@@ -4,8 +4,16 @@ import {
   useDisclosure, 
   useToast, 
   Box,
+  IconButton,
+  Text,
+  useBreakpointValue,
+  HStack,
+  Avatar,
+  Badge,
 } from '@chakra-ui/react';
+import { HamburgerIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useMobile } from '../contexts/MobileContext';
 import { Group, Message, User, DirectMessageContact } from '../types';
 import { groupAPI, userAPI } from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -26,6 +34,7 @@ const Groups: React.FC = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat>(null);
   
   const { user } = useAuth();
+  const { isMobile, openSidebar, setShowChat } = useMobile();
   const toast = useToast();
   
   const { 
@@ -40,7 +49,9 @@ const Groups: React.FC = () => {
     onClose: onUserSearchClose 
   } = useDisclosure();
 
-
+  // Mobile-specific values
+  const headerHeight = useBreakpointValue({ base: '60px', md: 'auto' });
+  const chatHeaderHeight = useBreakpointValue({ base: '50px', md: 'auto' });
 
   useEffect(() => {
     if (user) {
@@ -133,6 +144,9 @@ const Groups: React.FC = () => {
 
   const handleGroupSelect = (group: Group) => {
     setActiveChat({ type: 'group', data: group });
+    if (isMobile) {
+      setShowChat(true);
+    }
   };
 
   const handleDirectUserSelect = (selectedUser: User) => {
@@ -156,6 +170,10 @@ const Groups: React.FC = () => {
       
       return prev;
     });
+
+    if (isMobile) {
+      setShowChat(true);
+    }
   };
 
   const updateGroupLastMessage = (groupId: string, message: Message) => {
@@ -211,6 +229,11 @@ const Groups: React.FC = () => {
     });
   };
 
+  const handleBackToSidebar = () => {
+    setShowChat(false);
+    setActiveChat(null);
+  };
+
   const renderChatArea = () => {
     if (!activeChat) {
       return (
@@ -254,22 +277,127 @@ const Groups: React.FC = () => {
     }
   };
 
+  // Mobile chat header component
+  const MobileChatHeader = () => {
+    if (!activeChat) return null;
+
+    const getChatTitle = () => {
+      if (activeChat.type === 'group') {
+        return activeChat.data.name;
+      } else {
+        return activeChat.data.name;
+      }
+    };
+
+    const getChatSubtitle = () => {
+      if (activeChat.type === 'group') {
+        const group = activeChat.data as Group;
+        return `${group.members?.length || 0} members`;
+      } else {
+        const user = activeChat.data as User;
+        return user.role || 'User';
+      }
+    };
+
+    return (
+      <Box
+        h={chatHeaderHeight}
+        bg="white"
+        borderBottom="1px"
+        borderColor="gray.200"
+        px={4}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        flexShrink={0}
+      >
+        <HStack spacing={3}>
+          <IconButton
+            aria-label="Back to chats"
+            icon={<ArrowBackIcon />}
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToSidebar}
+          />
+          <Avatar
+            size="sm"
+            name={getChatTitle()}
+            src={activeChat.type === 'direct' ? activeChat.data.profilePic : undefined}
+          />
+          <Box>
+            <Text fontWeight="600" fontSize="sm" noOfLines={1}>
+              {getChatTitle()}
+            </Text>
+            <Text fontSize="xs" color="gray.500">
+              {getChatSubtitle()}
+            </Text>
+          </Box>
+        </HStack>
+      </Box>
+    );
+  };
+
   return (
-    <Flex h="100vh" bg="white">
-      {/* Unified Sidebar */}
-      <Sidebar
-        groups={groups}
-        directContacts={directContacts}
-        selectedGroup={activeChat?.type === 'group' ? activeChat.data : null}
-        selectedDirectUser={activeChat?.type === 'direct' ? activeChat.data : null}
-        onGroupSelect={handleGroupSelect}
-        onDirectUserSelect={handleDirectUserSelect}
-        onCreateGroup={onCreateGroupOpen}
-        onGroupJoined={handleGroupJoined}
-        onUserSearch={onUserSearchOpen}
-      />
+    <Flex h="100vh" bg="white" direction={isMobile ? "column" : "row"}>
+      {/* Mobile Header */}
+      {isMobile && !activeChat && (
+        <Box
+          h={headerHeight}
+          bg="white"
+          borderBottom="1px"
+          borderColor="gray.200"
+          px={4}
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          flexShrink={0}
+        >
+          <HStack spacing={3}>
+            <IconButton
+              aria-label="Open sidebar"
+              icon={<HamburgerIcon />}
+              variant="ghost"
+              size="sm"
+              onClick={openSidebar}
+              data-sidebar-toggle
+            />
+            <Box>
+              <Text fontWeight="600" fontSize="lg">
+                Chats
+              </Text>
+              <Text fontSize="xs" color="gray.500">
+                {groups.length} groups • {directContacts.length} direct chats
+              </Text>
+            </Box>
+          </HStack>
+        </Box>
+      )}
+
+      {/* Mobile Chat Header */}
+      {isMobile && activeChat && <MobileChatHeader />}
+
+      {/* Sidebar - hidden on mobile when chat is active */}
+      {(!isMobile || !activeChat) && (
+        <Sidebar
+          groups={groups}
+          directContacts={directContacts}
+          selectedGroup={activeChat?.type === 'group' ? activeChat.data : null}
+          selectedDirectUser={activeChat?.type === 'direct' ? activeChat.data : null}
+          onGroupSelect={handleGroupSelect}
+          onDirectUserSelect={handleDirectUserSelect}
+          onCreateGroup={onCreateGroupOpen}
+          onGroupJoined={handleGroupJoined}
+          onUserSearch={onUserSearchOpen}
+        />
+      )}
       
-      <Box flex="1" minW="0" h="100%">
+      {/* Chat Area */}
+      <Box 
+        flex="1" 
+        minW="0" 
+        h={isMobile ? "calc(100vh - 60px)" : "100%"}
+        display={isMobile && !activeChat ? "none" : "block"}
+      >
         {renderChatArea()}
       </Box>
       
