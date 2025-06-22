@@ -92,8 +92,10 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
       setPagination(response.pagination);
       
       if (reset && response.messages.length > 0) {
-        // Scroll to bottom for initial load
-        setTimeout(() => scrollToBottom(), 100);
+        // Force immediate scroll to bottom for initial load
+        setTimeout(() => scrollToBottom(true), 50);
+        // Also scroll again after a bit more time to ensure DOM is updated
+        setTimeout(() => scrollToBottom(false), 200);
       }
     } catch (error) {
       toast({
@@ -146,7 +148,8 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
       if (newMessage.groupId === group._id) {
         console.log('Adding message to current group');
         setMessages((prev) => [...prev, newMessage]);
-        scrollToBottom();
+        // Immediate scroll for new messages (WhatsApp behavior)
+        setTimeout(() => scrollToBottom(false), 50);
         
         // Update parent groups state with new message
         if (onNewMessage) {
@@ -186,15 +189,36 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
     }
   }, [handleScroll]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Scroll to bottom when messages change (new messages received)
+  useEffect(() => {
+    if (messages.length > 0 && !isLoadingMore) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => scrollToBottom(false), 100);
+    }
+  }, [messages.length, isLoadingMore]);
+
+  const scrollToBottom = (forced = false) => {
+    if (messagesEndRef.current) {
+      // Immediate scroll without animation for better UX
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: forced ? 'auto' : 'smooth',
+        block: 'end'
+      });
+    }
+    
+    // Also manually scroll the container to bottom as backup
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
   };
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
 
-    // Defensive check for sender ID
-    if (!currentUser?._id) {
+    // Defensive check for sender ID - handle both _id and id
+    const senderId = currentUser?._id || currentUser?.id;
+    if (!senderId) {
         console.error("Could not find sender ID on currentUser object", currentUser);
         toast({
             title: "Error sending message",
@@ -206,8 +230,10 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
         return;
     }
 
-    if (group._id && currentUser._id) {
-    socketService.sendMessage(group._id, currentUser._id, message);
+    if (group._id) {
+      socketService.sendMessage(group._id, senderId, message);
+      // Immediate scroll for sent messages
+      setTimeout(() => scrollToBottom(false), 50);
     }
     setMessage('');
   };
@@ -245,8 +271,10 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
     }
   };
 
-  const isUserAdmin = group.admins?.some(admin => admin._id === currentUser._id) || false;
-  const isUserCreator = group.createdBy?._id === currentUser._id;
+  const isUserAdmin = group.admins?.some(admin => 
+    admin._id === (currentUser._id || currentUser.id)
+  ) || false;
+  const isUserCreator = group.createdBy?._id === (currentUser._id || currentUser.id);
 
   // Member management functions
   const handleMemberAdd = () => {

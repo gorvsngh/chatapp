@@ -100,8 +100,10 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
     }
   };
 
-  const isGroupAdmin = group.admins?.some(admin => admin._id === currentUser._id) || false;
-  const isCreator = group.createdBy?._id === currentUser._id;
+  const isGroupAdmin = group.admins?.some(admin => 
+    admin._id === (currentUser._id || currentUser.id)
+  ) || false;
+  const isCreator = group.createdBy?._id === (currentUser._id || currentUser.id);
   const isSystemAdmin = currentUser.role === 'admin';
   const isHOD = currentUser.role === 'hod';
   
@@ -382,7 +384,7 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                             <Text fontWeight="600" fontSize="sm" color="gray.800">
                               {member.name}
                             </Text>
-                            {member._id === currentUser._id && (
+                            {member._id === (currentUser._id || currentUser.id) && (
                               <Badge colorScheme="gray" size="sm">
                                 You
                               </Badge>
@@ -415,7 +417,7 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                         </HStack>
                         
                         {/* Member Actions - Only show for admin/HOD and not for themselves */}
-                        {canManageMembers && member._id !== currentUser._id && (
+                        {canManageMembers && member._id !== (currentUser._id || currentUser.id) && (
                           <Menu>
                             <MenuButton
                               as={IconButton}

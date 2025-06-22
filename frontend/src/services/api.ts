@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { AuthResponse, LoginFormData, RegisterFormData, Group, Message, User, DirectMessageContact } from '../types';
 
+// const API_URL = 'https://chatapp-backend-4e4a.onrender.com';
 const API_URL = 'https://chatapp-backend-4e4a.onrender.com';
 
 const api = axios.create({
@@ -12,6 +13,16 @@ const api = axios.create({
 
 // Add token to requests if it exists
 api.interceptors.request.use((config) => {
+  // Check for admin token first for admin routes
+  if (config.url?.includes('/admin')) {
+    const adminToken = localStorage.getItem('admin-token');
+    if (adminToken) {
+      config.headers.Authorization = `Bearer ${adminToken}`;
+      return config;
+    }
+  }
+  
+  // Use regular token for non-admin routes
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -26,13 +37,25 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Clear localStorage and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
-      // Only redirect if not already on login page
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // Check if this is an admin route
+      if (error.config?.url?.includes('/admin')) {
+        // Clear admin session data
+        localStorage.removeItem('admin-token');
+        localStorage.removeItem('admin-user');
+        
+        // Redirect to admin login if not already there
+        if (window.location.pathname !== '/admin-login') {
+          window.location.href = '/admin-login';
+        }
+      } else {
+        // Clear regular user session data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Only redirect if not already on login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
@@ -98,6 +121,27 @@ export const groupAPI = {
 };
 
 export const adminAPI = {
+  // Admin Authentication
+  login: async (data: { regNo: string; password: string }) => {
+    const response = await api.post('/admin-auth/login', data);
+    return response.data;
+  },
+  
+  validateSession: async () => {
+    const response = await api.post('/admin-auth/validate-session');
+    return response.data;
+  },
+  
+  logout: async () => {
+    const response = await api.post('/admin-auth/logout');
+    return response.data;
+  },
+  
+  getLoginAttempts: async () => {
+    const response = await api.get('/admin-auth/login-attempts');
+    return response.data;
+  },
+
   // Dashboard
   getDashboardStats: async () => {
     const response = await api.get('/admin/dashboard');

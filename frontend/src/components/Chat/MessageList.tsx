@@ -69,6 +69,11 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
   const shouldShowAvatar = (currentMessage: Message, nextMessage?: Message) => {
     if (!nextMessage) return true;
     
+    // Safety check for null senderIds
+    if (!currentMessage.senderId?._id || !nextMessage.senderId?._id) {
+      return true;
+    }
+    
     const currentSender = currentMessage.senderId._id;
     const nextSender = nextMessage.senderId._id;
     const currentUserId = currentUser._id || (currentUser as any)?.id;
@@ -98,7 +103,9 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
 
   return (
     <VStack spacing={1} align="stretch">
-      {messages.map((message, index) => {
+      {messages
+        .filter(message => message?.senderId?._id) // Filter out messages with null senderId
+        .map((message, index, filteredMessages) => {
         // Basic validation
         if (!message?._id || !message.senderId?._id) {
           return null;
@@ -106,11 +113,11 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
 
         const currentUserId = currentUser._id || (currentUser as any)?.id;
         const isSender = message.senderId._id === currentUserId;
-        const showDateSeparator = shouldShowDateSeparator(message, messages[index - 1]);
-        const showAvatar = shouldShowAvatar(message, messages[index + 1]);
+        const showDateSeparator = shouldShowDateSeparator(message, filteredMessages[index - 1]);
+        const showAvatar = shouldShowAvatar(message, filteredMessages[index + 1]);
         const isConsecutive = index > 0 && 
-          messages[index - 1]?.senderId?._id === message.senderId._id &&
-          !shouldShowDateSeparator(message, messages[index - 1]);
+          filteredMessages[index - 1]?.senderId?._id === message.senderId._id &&
+          !shouldShowDateSeparator(message, filteredMessages[index - 1]);
 
         return (
           <Box key={message._id}>

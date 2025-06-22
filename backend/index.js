@@ -28,6 +28,7 @@ app.use(express.json());
 app.use('/auth', require('./routes/auth'));
 app.use('/users', require('./routes/users'));
 app.use('/groups', require('./routes/groups'));
+app.use('/admin-auth', require('./routes/adminAuth'));
 app.use('/admin', require('./routes/admin'));
 
 app.get('/', (req, res) => {

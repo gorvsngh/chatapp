@@ -9,6 +9,8 @@ import {
   useBreakpointValue,
   HStack,
   Avatar,
+  Center,
+  Spinner,
 } from '@chakra-ui/react';
 import { HamburgerIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -52,17 +54,25 @@ const Groups: React.FC = () => {
   const headerHeight = useBreakpointValue({ base: '60px', md: 'auto' });
   const chatHeaderHeight = useBreakpointValue({ base: '50px', md: 'auto' });
 
+  // Don't render anything if user is not loaded yet
+  if (!user) {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" color="blue.500" />
+      </Center>
+    );
+  }
+
   useEffect(() => {
-    if (user) {
-      console.log('User logged in, setting up socket connection:', user._id);
+    const userId = user?._id || user?.id;
+    if (userId) {
+      console.log('User logged in, setting up socket connection:', userId);
       
       fetchGroups();
       fetchDirectContacts();
       
       // Join user's personal room for direct messages
-      if (user._id) {
-        socketService.joinUser(user._id);
-      }
+      socketService.joinUser(userId);
       
       // Listen for socket errors
       const unsubscribeError = socketService.onMessageError((error) => {
@@ -77,14 +87,12 @@ const Groups: React.FC = () => {
       });
 
       return () => {
-        console.log('Cleaning up socket connection for user:', user._id);
-        if (user._id) {
-          socketService.leaveUser(user._id);
-        }
+        console.log('Cleaning up socket connection for user:', userId);
+        socketService.leaveUser(userId);
         unsubscribeError();
       };
     }
-  }, [user]);
+  }, [user?._id || user?.id, toast]);
 
   const fetchGroups = async () => {
     try {
@@ -104,7 +112,12 @@ const Groups: React.FC = () => {
   const fetchDirectContacts = async () => {
     try {
       const contacts = await userAPI.getDirectMessageContacts();
-      setDirectContacts(contacts);
+      // Filter out current user from contacts (safety check)
+      const currentUserId = user?._id || user?.id;
+      const filteredContacts = contacts.filter(contact => 
+        contact.user._id !== currentUserId && contact.user.id !== currentUserId
+      );
+      setDirectContacts(filteredContacts);
     } catch (error) {
       console.error('Error fetching direct contacts:', error);
     }
@@ -114,7 +127,13 @@ const Groups: React.FC = () => {
     if (!user) return;
     
     // Determine the other user in the conversation
-    const otherUser = message.senderId._id === user._id ? message.receiverId! : message.senderId;
+    const currentUserId = user._id || user.id;
+    const otherUser = message.senderId._id === currentUserId ? message.receiverId! : message.senderId;
+    
+    // Safety check: Don't add current user to their own contacts
+    if (otherUser._id === currentUserId || otherUser.id === currentUserId) {
+      return;
+    }
     
     setDirectContacts(prev => {
       // Check if contact already exists
@@ -135,7 +154,7 @@ const Groups: React.FC = () => {
         return [{
           user: otherUser,
           lastMessage: message,
-          unreadCount: message.senderId._id !== user._id ? 1 : 0,
+          unreadCount: message.senderId._id !== currentUserId ? 1 : 0,
         }, ...prev];
       }
     });
@@ -149,6 +168,12 @@ const Groups: React.FC = () => {
   };
 
   const handleDirectUserSelect = (selectedUser: User) => {
+    // Safety check: Don't allow user to chat with themselves
+    const currentUserId = user?._id || user?.id;
+    if (selectedUser._id === currentUserId || selectedUser.id === currentUserId) {
+      return;
+    }
+    
     setActiveChat({ type: 'direct', data: selectedUser });
     
     // Add user to directContacts if not already present (without fake message)

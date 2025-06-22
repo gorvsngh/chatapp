@@ -151,11 +151,22 @@ exports.getDirectMessageContacts = async(req, res) => {
         const contactsMap = new Map();
 
         messages.forEach(message => {
+            // Safety check for null populated fields
+            if (!message.senderId || !message.receiverId) {
+                console.warn('Skipping message with null sender/receiver:', message._id);
+                return;
+            }
+
             const contact = message.senderId._id.toString() === currentUserId 
                 ? message.receiverId 
                 : message.senderId;
             
             const contactId = contact._id.toString();
+            
+            // Skip if contact is the current user (safety check)
+            if (contactId === currentUserId) {
+                return;
+            }
             
             if (!contactsMap.has(contactId)) {
                 contactsMap.set(contactId, {

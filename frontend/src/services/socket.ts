@@ -55,7 +55,31 @@ class SocketService {
       console.log('Joining user room:', userId);
       this.socket.emit('joinUser', userId);
     } else {
-      console.error('Cannot join user room - socket not connected');
+      console.log('Socket not connected yet, waiting for connection to join user room...');
+      // Wait for connection and retry
+      const checkConnection = () => {
+        if (this.isConnected()) {
+          console.log('Socket connected, now joining user room:', userId);
+          this.socket.emit('joinUser', userId);
+        } else {
+          // Retry after 1 second, max 5 times
+          setTimeout(() => {
+            if (this.isConnected()) {
+              console.log('Socket connected after retry, joining user room:', userId);
+              this.socket.emit('joinUser', userId);
+            }
+          }, 1000);
+        }
+      };
+      
+      // Listen for connection event
+      this.socket.once('connect', () => {
+        console.log('Socket connected via event listener, joining user room:', userId);
+        this.socket.emit('joinUser', userId);
+      });
+      
+      // Also check immediately in case connection happens very fast
+      setTimeout(checkConnection, 100);
     }
   }
 

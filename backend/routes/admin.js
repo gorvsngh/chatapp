@@ -1,82 +1,87 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
-const roleMiddleware = require('../middleware/roleMiddleware');
+const { adminSecurity, logAdminAction } = require('../middleware/adminSecurityMiddleware');
 const adminController = require('../controllers/adminController');
 
-// Dashboard
+// Apply enhanced admin security to all routes
+router.use(authMiddleware);
+router.use(adminSecurity);
+
+// Dashboard - Most sensitive admin route
 router.get(
     '/dashboard', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('DASHBOARD_ACCESS'),
     adminController.getDashboardStats
 );
 
-// Messages Management
+// Messages Management - High sensitivity
 router.get(
     '/messages', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('VIEW_ALL_MESSAGES'),
     adminController.getAllMessages
 );
 
 router.delete(
     '/messages/:id', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('DELETE_MESSAGE'),
     adminController.deleteMessage
 );
 
-// Users Management
+// Users Management - Critical operations
 router.get(
     '/users', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('VIEW_ALL_USERS'),
     adminController.getAllUsers
 );
 
 router.post(
     '/users', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('CREATE_USER'),
     adminController.createUser
 );
 
 router.post(
     '/users/bulk', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('BULK_CREATE_USERS'),
     adminController.bulkCreateUsers
 );
 
 router.post(
     '/users/upload', 
-    [authMiddleware, roleMiddleware(['admin']), adminController.upload.single('file')],
+    adminController.upload.single('file'),
+    logAdminAction('UPLOAD_USERS_FILE'),
     adminController.uploadUsersFromSheet
 );
 
 router.put(
     '/users/:id', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('UPDATE_USER'),
     adminController.updateUser
 );
 
 router.delete(
     '/users/:id', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('DELETE_USER'),
     adminController.deleteUser
 );
 
-// Groups Management
+// Groups Management - Moderate sensitivity
 router.get(
     '/groups', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('VIEW_ALL_GROUPS'),
     adminController.getAllGroups
 );
 
 router.put(
     '/groups/:id', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('UPDATE_GROUP'),
     adminController.updateGroup
 );
 
 router.delete(
     '/groups/:id', 
-    [authMiddleware, roleMiddleware(['admin'])],
+    logAdminAction('DELETE_GROUP'),
     adminController.deleteGroup
 );
 

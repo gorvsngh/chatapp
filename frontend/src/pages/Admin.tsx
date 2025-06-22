@@ -660,13 +660,15 @@ const Admin: React.FC = () => {
                       <CardBody>
                         <Heading size="md" mb={4}>Recent Activity</Heading>
                         <VStack spacing={3} align="stretch">
-                          {dashboardStats.recentActivity.map((message) => (
+                          {dashboardStats?.recentActivity
+                            ?.filter(message => message.senderId) // Filter out messages with null senderId
+                            .map((message) => (
                             <Box key={message._id} p={3} bg="gray.50" borderRadius="md">
                               <HStack>
-                                <Avatar size="sm" name={message.senderId.name} />
+                                <Avatar size="sm" name={message.senderId?.name || 'Unknown User'} />
                                 <VStack align="start" spacing={0} flex={1}>
                                   <Text fontWeight="semibold" fontSize="sm">
-                                    {message.senderId.name}
+                                    {message.senderId?.name || 'Unknown User'}
                                   </Text>
                                   <Text fontSize="xs" color="gray.600" noOfLines={1}>
                                     {message.text}
@@ -1082,21 +1084,23 @@ const Admin: React.FC = () => {
                                 </Tr>
                               </Thead>
                               <Tbody>
-                                {messages.map((message) => (
+                                {messages
+                                  .filter(message => message.senderId) // Filter out messages with null senderId
+                                  .map((message) => (
                                   <Tr key={message._id} _hover={{ bg: 'gray.50' }}>
                                     <Td>
                                       <HStack>
-                                        <Avatar size="sm" name={message.senderId.name} />
+                                        <Avatar size="sm" name={message.senderId?.name || 'Unknown User'} />
                                         <VStack align="start" spacing={1}>
                                           <Text fontSize="sm" fontWeight="semibold">
-                                            {message.senderId.name}
+                                            {message.senderId?.name || 'Unknown User'}
                                           </Text>
                                           <HStack spacing={1}>
-                                            <Badge size="xs" colorScheme={getRoleBadgeColor(message.senderId.role)}>
-                                              {message.senderId.role}
+                                            <Badge size="xs" colorScheme={getRoleBadgeColor(message.senderId?.role || 'student')}>
+                                              {message.senderId?.role || 'N/A'}
                                             </Badge>
                                             <Text fontSize="xs" color="gray.500">
-                                              {message.senderId.regNo}
+                                              {message.senderId?.regNo || 'N/A'}
                                             </Text>
                                           </HStack>
                                         </VStack>
@@ -1151,7 +1155,7 @@ const Admin: React.FC = () => {
                                           setDeleteTarget({ 
                                             type: 'message', 
                                             id: message._id, 
-                                            name: `Message from ${message.senderId.name}` 
+                                            name: `Message from ${message.senderId?.name || 'Unknown User'}` 
                                           });
                                           onDeleteOpen();
                                         }}
