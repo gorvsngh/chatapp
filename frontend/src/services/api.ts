@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { AuthResponse, LoginFormData, RegisterFormData, Group, Message, User, DirectMessageContact } from '../types';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://chatapp-backend-4e4a.onrender.com';
 
 const api = axios.create({
   baseURL: API_URL,

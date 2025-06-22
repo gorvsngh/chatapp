@@ -7,7 +7,7 @@ class SocketService {
 
   constructor() {
     console.log('Initializing socket connection...');
-    this.socket = io('http://localhost:5000', {
+    this.socket = io('https://chatapp-backend-4e4a.onrender.com', {
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,
