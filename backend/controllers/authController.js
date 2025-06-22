@@ -50,7 +50,7 @@ exports.register = async (req, res) => {
 
         jwt.sign(
             payload,
-            'collegechat_jwt_secret_2024', 
+            process.env.JWT_SECRET, 
             { expiresIn: 3600 },
             (err, token) => {
                 if (err) throw err;
@@ -127,7 +127,7 @@ exports.login = async(req, res) => {
 
         jwt.sign(
             payload,
-            'collegechat_jwt_secret_2024', { expiresIn: 3600 },
+            process.env.JWT_SECRET, { expiresIn: 3600 },
             (err, token) => {
                 if (err) throw err;
                 // Send user data (excluding password) along with token
