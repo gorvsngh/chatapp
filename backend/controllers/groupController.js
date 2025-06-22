@@ -126,6 +126,11 @@ exports.getGroupMessages = async(req, res) => {
     try {
         const groupId = req.params.id;
         const userId = req.user.id;
+        
+        // Get pagination parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
         // Check if group exists and user is a member
         const group = await Group.findById(groupId);
@@ -138,11 +143,28 @@ exports.getGroupMessages = async(req, res) => {
             return res.status(403).json({ msg: 'You are not a member of this group' });
         }
 
-        const messages = await Message.find({ groupId: req.params.id }).populate(
-            'senderId',
-            'name _id profilePic'
-        );
-        res.json(messages);
+        // Get total count of messages
+        const totalMessages = await Message.countDocuments({ groupId: groupId });
+        
+        // Fetch messages with pagination - newest first
+        const messages = await Message.find({ groupId: groupId })
+            .populate('senderId', 'name _id profilePic role')
+            .sort({ timestamp: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(limit);
+
+        // Reverse the array to show oldest to newest in the UI
+        const reversedMessages = messages.reverse();
+
+        res.json({
+            messages: reversedMessages,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalMessages / limit),
+                totalMessages,
+                hasMore: page < Math.ceil(totalMessages / limit)
+            }
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

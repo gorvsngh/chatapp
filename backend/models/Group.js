@@ -17,6 +17,10 @@ const GroupSchema = new mongoose.Schema({
         type: String,
         required: false,
     },
+    year: {
+        type: Number,
+        required: false,
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -25,7 +29,11 @@ const GroupSchema = new mongoose.Schema({
     members: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-    }, ],
+    }],
+    admins: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
     createdAt: {
         type: Date,
         default: Date.now,

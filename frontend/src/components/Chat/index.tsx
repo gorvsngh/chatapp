@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Box,
   Flex,
@@ -19,6 +19,8 @@ import {
   MenuItem,
   useDisclosure,
   useBreakpointValue,
+  Spinner,
+  Center,
 } from '@chakra-ui/react';
 import { FiSend, FiMoreVertical, FiInfo, FiUsers } from 'react-icons/fi';
 import { Group, Message, User } from '../../types';
@@ -38,7 +40,17 @@ interface ChatProps {
 const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUpdate }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalMessages: 0,
+    hasMore: false
+  });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const { isOpen: isGroupInfoOpen, onOpen: onGroupInfoOpen, onClose: onGroupInfoClose } = useDisclosure();
   const { isOpen: isUserSearchOpen, onOpen: onUserSearchOpen, onClose: onUserSearchClose } = useDisclosure();
@@ -55,6 +67,68 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
   const avatarSize = useBreakpointValue({ base: 'sm', md: 'md' });
   const buttonSize = useBreakpointValue({ base: 'mobile', md: 'sm' });
   const inputSize = useBreakpointValue({ base: 'mobile', md: 'lg' });
+
+  // Fetch messages with pagination
+  const fetchMessages = useCallback(async (page: number = 1, reset: boolean = false) => {
+    try {
+      if (!group._id) {
+        console.error('Group ID is undefined');
+        return;
+      }
+
+      if (page > 1) {
+        setIsLoadingMore(true);
+      }
+
+      const response = await groupAPI.getGroupMessages(group._id, page, 20);
+      
+      if (reset) {
+        setMessages(response.messages);
+      } else {
+        // When loading older messages, prepend to existing messages
+        setMessages(prevMessages => [...response.messages, ...prevMessages]);
+      }
+      
+      setPagination(response.pagination);
+      
+      if (reset && response.messages.length > 0) {
+        // Scroll to bottom for initial load
+        setTimeout(() => scrollToBottom(), 100);
+      }
+    } catch (error) {
+      toast({
+        title: 'Error fetching messages',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoadingMore(false);
+      setIsInitialLoad(false);
+    }
+  }, [group._id, toast]);
+
+  // Handle scroll to load more messages
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || isLoadingMore || !pagination.hasMore) return;
+
+    // Check if scrolled to top (with some threshold)
+    if (container.scrollTop <= 100) {
+      const prevScrollHeight = container.scrollHeight;
+      const prevScrollTop = container.scrollTop;
+
+      fetchMessages(pagination.currentPage + 1, false).then(() => {
+        // Maintain scroll position after loading older messages
+        setTimeout(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+          }
+        }, 50);
+      });
+    }
+  }, [fetchMessages, isLoadingMore, pagination.hasMore, pagination.currentPage]);
 
   useEffect(() => {
     // Join the new group's socket room
@@ -91,7 +165,8 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
     });
 
     // Fetch initial messages for the selected group
-    fetchMessages();
+    setIsInitialLoad(true);
+    fetchMessages(1, true);
 
     // Cleanup on component unmount or group change
     return () => {
@@ -100,31 +175,16 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
         socketService.leaveGroup(group._id);
       }
     };
-  }, [group._id]);
+  }, [group._id, fetchMessages, onNewMessage]);
 
+  // Add scroll event listener
   useEffect(() => {
-    // Scroll to bottom whenever messages change
-    scrollToBottom();
-  }, [messages]);
-
-  const fetchMessages = async () => {
-    try {
-      if (!group._id) {
-        console.error('Group ID is undefined');
-        return;
-      }
-      const fetchedMessages = await groupAPI.getGroupMessages(group._id);
-      setMessages(fetchedMessages);
-      scrollToBottom();
-    } catch (error) {
-      toast({
-        title: 'Error fetching messages',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
     }
-  };
+  }, [handleScroll]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -147,7 +207,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
     }
 
     if (group._id && currentUser._id) {
-      socketService.sendMessage(group._id, currentUser._id, message);
+    socketService.sendMessage(group._id, currentUser._id, message);
     }
     setMessage('');
   };
@@ -398,6 +458,7 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
 
       {/* Messages Area */}
       <Box
+        ref={messagesContainerRef}
         flex="1"
         overflowY="auto"
         p={isMobile ? 2 : 2}
@@ -418,11 +479,27 @@ const Chat: React.FC<ChatProps> = ({ group, currentUser, onNewMessage, onGroupUp
           },
         }}
       >
-        <MessageList
-          messages={messages}
-          currentUser={currentUser}
-        />
-        <div ref={messagesEndRef} />
+        {/* Loading indicator for fetching older messages */}
+        {isLoadingMore && (
+          <Center py={4}>
+            <Spinner size="sm" color="brand.500" />
+          </Center>
+        )}
+        
+        {/* Initial loading indicator */}
+        {isInitialLoad && messages.length === 0 ? (
+          <Center h="100%" w="100%">
+            <Spinner size="lg" color="brand.500" />
+          </Center>
+        ) : (
+          <>
+            <MessageList
+              messages={messages}
+              currentUser={currentUser}
+            />
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </Box>
 
       {/* Message Input */}

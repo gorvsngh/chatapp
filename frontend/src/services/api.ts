@@ -67,8 +67,16 @@ export const groupAPI = {
     const response = await api.post('/groups', data);
     return response.data;
   },
-  getGroupMessages: async (groupId: string): Promise<Message[]> => {
-    const response = await api.get(`/groups/${groupId}/messages`);
+  getGroupMessages: async (groupId: string, page: number = 1, limit: number = 20): Promise<{
+    messages: Message[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalMessages: number;
+      hasMore: boolean;
+    };
+  }> => {
+    const response = await api.get(`/groups/${groupId}/messages?page=${page}&limit=${limit}`);
     return response.data;
   },
   joinGroup: async (groupId: string): Promise<{ msg: string; group: Group }> => {

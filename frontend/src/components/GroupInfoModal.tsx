@@ -377,21 +377,21 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                     {group.members?.map((member) => (
                       <HStack key={member._id} justify="space-between">
                         <HStack flex="1">
-                          <Avatar
-                            size="md"
-                            name={member.name}
-                            src={member.profilePic}
-                          />
-                          <VStack align="start" spacing={0} flex="1">
-                            <HStack>
-                              <Text fontWeight="600" fontSize="sm" color="gray.800">
-                                {member.name}
-                              </Text>
-                              {member._id === currentUser._id && (
-                                <Badge colorScheme="gray" size="sm">
-                                  You
-                                </Badge>
-                              )}
+                        <Avatar
+                          size="md"
+                          name={member.name}
+                          src={member.profilePic}
+                        />
+                        <VStack align="start" spacing={0} flex="1">
+                          <HStack>
+                            <Text fontWeight="600" fontSize="sm" color="gray.800">
+                              {member.name}
+                            </Text>
+                            {member._id === currentUser._id && (
+                              <Badge colorScheme="gray" size="sm">
+                                You
+                              </Badge>
+                            )}
                               {/* Show admin badges */}
                               {isCreator && member._id === group.createdBy?._id && (
                                 <Badge colorScheme="green" size="sm">
@@ -403,20 +403,20 @@ const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                                   Admin
                                 </Badge>
                               )}
-                            </HStack>
-                            <HStack spacing={2}>
-                              <Badge
-                                colorScheme={member.role === 'admin' ? 'red' : member.role === 'hod' ? 'purple' : member.role === 'teacher' ? 'blue' : 'green'}
-                                size="sm"
-                                variant="subtle"
-                              >
-                                {member.role}
-                              </Badge>
-                              <Text fontSize="xs" color={textColor}>
-                                {member.email}
-                              </Text>
-                            </HStack>
-                          </VStack>
+                          </HStack>
+                          <HStack spacing={2}>
+                            <Badge
+                              colorScheme={member.role === 'admin' ? 'red' : member.role === 'hod' ? 'purple' : member.role === 'teacher' ? 'blue' : 'green'}
+                              size="sm"
+                              variant="subtle"
+                            >
+                              {member.role}
+                            </Badge>
+                            <Text fontSize="xs" color={textColor}>
+                              {member.email}
+                            </Text>
+                          </HStack>
+                        </VStack>
                         </HStack>
                         
                         {/* Member Actions - Only show for admin/HOD and not for themselves */}

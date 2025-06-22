@@ -100,12 +100,18 @@ const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);  
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string; name: string } | null>(null);
+
+  // Pagination states
+  const [userPagination, setUserPagination] = useState({ page: 1, totalPages: 1, total: 0, hasMore: false });
+  const [groupPagination, setGroupPagination] = useState({ page: 1, totalPages: 1, total: 0, hasMore: false });
+  const [messagePagination, setMessagePagination] = useState({ page: 1, totalPages: 1, total: 0, hasMore: false });
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Filters
   const [userFilters, setUserFilters] = useState({ search: '', role: '', department: '' });
@@ -157,12 +163,31 @@ const Admin: React.FC = () => {
     }
   };
 
-  // Load users
-  const loadUsers = async () => {
+  // Load users with pagination
+  const loadUsers = async (page: number = 1, append: boolean = false) => {
     try {
-      setLoading(true);
-      const response = await adminAPI.getUsers(userFilters);
-      setUsers(response.users);
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const params: any = { page, limit: 20 };
+      if (userFilters.role) params.role = userFilters.role;
+      if (userFilters.department) params.department = userFilters.department;
+      if (userFilters.search) params.search = userFilters.search;
+      
+      const response = await adminAPI.getUsers(params);
+      
+      if (append) {
+        setUsers(prev => [...prev, ...response.users]);
+      } else {
+        setUsers(response.users);
+      }
+      
+      setUserPagination({
+        page: response.page,
+        totalPages: response.pages,
+        total: response.total,
+        hasMore: response.page < response.pages
+      });
     } catch (error) {
       toast({
         title: 'Error loading users',
@@ -172,15 +197,35 @@ const Admin: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  // Load groups
-  const loadGroups = async () => {
+  // Load groups with pagination
+  const loadGroups = async (page: number = 1, append: boolean = false) => {
     try {
-      setLoading(true);
-      const response = await adminAPI.getGroups(groupFilters);
-      setGroups(response.groups);
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const params: any = { page, limit: 20 };
+      if (groupFilters.type) params.type = groupFilters.type;
+      if (groupFilters.department) params.department = groupFilters.department;
+      if (groupFilters.search) params.search = groupFilters.search;
+      
+      const response = await adminAPI.getGroups(params);
+      
+      if (append) {
+        setGroups(prev => [...prev, ...response.groups]);
+      } else {
+        setGroups(response.groups);
+      }
+      
+      setGroupPagination({
+        page: response.page,
+        totalPages: response.pages,
+        total: response.total,
+        hasMore: response.page < response.pages
+      });
     } catch (error) {
       toast({
         title: 'Error loading groups',
@@ -190,15 +235,34 @@ const Admin: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  // Load messages
-  const loadMessages = async () => {
+  // Load messages with pagination
+  const loadMessages = async (page: number = 1, append: boolean = false) => {
     try {
-      setLoading(true);
-      const response = await adminAPI.getMessages(messageFilters);
-      setMessages(response.messages);
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const params: any = { page, limit: 20 };
+      if (messageFilters.groupId) params.groupId = messageFilters.groupId;
+      if (messageFilters.senderId) params.senderId = messageFilters.senderId;
+      
+      const response = await adminAPI.getMessages(params);
+      
+      if (append) {
+        setMessages(prev => [...prev, ...response.messages]);
+      } else {
+        setMessages(response.messages);
+      }
+      
+      setMessagePagination({
+        page: response.page,
+        totalPages: response.pages,
+        total: response.total,
+        hasMore: response.page < response.pages
+      });
     } catch (error) {
       toast({
         title: 'Error loading messages',
@@ -208,6 +272,7 @@ const Admin: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -224,7 +289,7 @@ const Admin: React.FC = () => {
         isClosable: true,
       });
       onEditUserClose();
-      loadUsers();
+      loadUsers(1, false);
     } catch (error) {
       toast({
         title: 'Error updating user',
@@ -248,7 +313,7 @@ const Admin: React.FC = () => {
         isClosable: true,
       });
       onEditGroupClose();
-      loadGroups();
+      loadGroups(1, false);
     } catch (error) {
       toast({
         title: 'Error updating group',
@@ -270,7 +335,7 @@ const Admin: React.FC = () => {
         isClosable: true,
       });
       onCreateUserClose();
-      loadUsers();
+      loadUsers(1, false);
     } catch (error) {
       toast({
         title: 'Error creating user',
@@ -296,7 +361,7 @@ const Admin: React.FC = () => {
         duration: 5000,
         isClosable: true,
       });
-      loadUsers();
+      loadUsers(1, false);
     } catch (error: any) {
       toast({
         title: 'Error uploading file',
@@ -329,24 +394,24 @@ const Admin: React.FC = () => {
         setMemberToRemove(null);
       } else if (deleteTarget) {
         // Handle other deletions
-        if (deleteTarget.type === 'user') {
-          await adminAPI.deleteUser(deleteTarget.id);
-          loadUsers();
-        } else if (deleteTarget.type === 'group') {
-          await adminAPI.deleteGroup(deleteTarget.id);
-          loadGroups();
-        } else if (deleteTarget.type === 'message') {
-          await adminAPI.deleteMessage(deleteTarget.id);
-          loadMessages();
-        }
+      if (deleteTarget.type === 'user') {
+        await adminAPI.deleteUser(deleteTarget.id);
+        loadUsers(1, false);
+      } else if (deleteTarget.type === 'group') {
+        await adminAPI.deleteGroup(deleteTarget.id);
+        loadGroups(1, false);
+      } else if (deleteTarget.type === 'message') {
+        await adminAPI.deleteMessage(deleteTarget.id);
+        loadMessages(1, false);
+      }
 
-        toast({
-          title: `${deleteTarget.type} deleted successfully`,
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        setDeleteTarget(null);
+      toast({
+        title: `${deleteTarget.type} deleted successfully`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      setDeleteTarget(null);
       }
 
       handleDeleteClose();
@@ -480,15 +545,21 @@ const Admin: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 1) loadUsers();
+    if (activeTab === 1) {
+      loadUsers(1, false);
+    }
   }, [activeTab, userFilters]);
 
   useEffect(() => {
-    if (activeTab === 2) loadGroups();
+    if (activeTab === 2) {
+      loadGroups(1, false);
+    }
   }, [activeTab, groupFilters]);
 
   useEffect(() => {
-    if (activeTab === 3) loadMessages();
+    if (activeTab === 3) {
+      loadMessages(1, false);
+    }
   }, [activeTab, messageFilters]);
 
   return (
@@ -673,66 +744,113 @@ const Admin: React.FC = () => {
                     <CardBody>
                       {loading ? (
                         <Center py={10}>
-                          <Spinner />
+                          <Spinner size="lg" />
                         </Center>
                       ) : (
-                        <Table variant="simple">
-                          <Thead>
-                            <Tr>
-                              <Th>User</Th>
-                              <Th>Reg No</Th>
-                              <Th>Role</Th>
-                              <Th>Department</Th>
-                              <Th>Year</Th>
-                              <Th>Actions</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {users.map((user) => (
-                              <Tr key={user._id}>
-                                <Td>
-                                  <HStack>
-                                    <Avatar size="sm" name={user.name} />
-                                    <Text>{user.name}</Text>
-                                  </HStack>
-                                </Td>
-                                <Td>{user.regNo}</Td>
-                                <Td>
-                                  <Badge colorScheme={getRoleBadgeColor(user.role)}>
-                                    {user.role}
-                                  </Badge>
-                                </Td>
-                                <Td>{user.department}</Td>
-                                <Td>{user.year}</Td>
-                                <Td>
-                                  <HStack>
-                                    <Button
-                                      size="sm"
-                                      leftIcon={<Icon as={FiEdit} />}
-                                      onClick={() => {
-                                        setSelectedUser(user);
-                                        onEditUserOpen();
-                                      }}
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      colorScheme="red"
-                                      leftIcon={<Icon as={FiTrash2} />}
-                                      onClick={() => {
-                                        setDeleteTarget({ type: 'user', id: user._id, name: user.name });
-                                        onDeleteOpen();
-                                      }}
-                                    >
-                                      Delete
-                                    </Button>
-                                  </HStack>
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
+                        <>
+                          <Box maxH="600px" overflowY="auto">
+                            <Table variant="simple">
+                              <Thead position="sticky" top={0} bg={cardBg} zIndex={1}>
+                                <Tr>
+                                  <Th>User</Th>
+                                  <Th>Reg No</Th>
+                                  <Th>Role</Th>
+                                  <Th>Department</Th>
+                                  <Th>Year</Th>
+                                  <Th>Actions</Th>
+                                </Tr>
+                              </Thead>
+                              <Tbody>
+                                {users.map((user) => (
+                                  <Tr key={user._id} _hover={{ bg: 'gray.50' }}>
+                                    <Td>
+                                      <HStack>
+                                        <Avatar size="sm" name={user.name} />
+                                        <VStack align="start" spacing={0}>
+                                          <Text fontWeight="medium">{user.name}</Text>
+                                          <Text fontSize="xs" color="gray.500">{user.email}</Text>
+                                        </VStack>
+                                      </HStack>
+                                    </Td>
+                                    <Td>
+                                      <Text fontFamily="mono" fontSize="sm">{user.regNo}</Text>
+                                    </Td>
+                                    <Td>
+                                      <Badge 
+                                        colorScheme={getRoleBadgeColor(user.role)}
+                                        variant="subtle"
+                                        px={2}
+                                        py={1}
+                                        borderRadius="md"
+                                      >
+                                        {user.role.toUpperCase()}
+                                      </Badge>
+                                    </Td>
+                                    <Td>
+                                      <Text fontSize="sm">{user.department || 'N/A'}</Text>
+                                    </Td>
+                                    <Td>
+                                      <Text fontSize="sm">{user.year || 'N/A'}</Text>
+                                    </Td>
+                                    <Td>
+                                      <HStack spacing={2}>
+                                        <Button
+                                          size="sm"
+                                          leftIcon={<Icon as={FiEdit} />}
+                                          colorScheme="blue"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setSelectedUser(user);
+                                            onEditUserOpen();
+                                          }}
+                                        >
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          colorScheme="red"
+                                          variant="outline"
+                                          leftIcon={<Icon as={FiTrash2} />}
+                                          onClick={() => {
+                                            setDeleteTarget({ type: 'user', id: user._id || '', name: user.name });
+                                            onDeleteOpen();
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </HStack>
+                                    </Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Box>
+                          
+                          {/* Pagination Info and Load More */}
+                          <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
+                            <HStack justify="space-between" align="center">
+                              <Text fontSize="sm" color="gray.600">
+                                Showing {users.length} of {userPagination.total} users
+                              </Text>
+                              {userPagination.hasMore && (
+                                <Button
+                                  size="sm"
+                                  colorScheme="blue"
+                                  variant="outline"
+                                  isLoading={loadingMore}
+                                  onClick={() => loadUsers(userPagination.page + 1, true)}
+                                >
+                                  Load More
+                                </Button>
+                              )}
+                            </HStack>
+                            {loadingMore && (
+                              <Center mt={4}>
+                                <Spinner size="sm" />
+                              </Center>
+                            )}
+                          </Box>
+                        </>
                       )}
                     </CardBody>
                   </Card>
@@ -772,77 +890,146 @@ const Admin: React.FC = () => {
                     <CardBody>
                       {loading ? (
                         <Center py={10}>
-                          <Spinner />
+                          <Spinner size="lg" />
                         </Center>
                       ) : (
-                        <Table variant="simple">
-                          <Thead>
-                            <Tr>
-                              <Th>Group Name</Th>
-                              <Th>Type</Th>
-                              <Th>Department</Th>
-                              <Th>Members</Th>
-                              <Th>Created By</Th>
-                              <Th>Actions</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {groups.map((group) => (
-                              <Tr key={group._id}>
-                                <Td>
-                                  <VStack align="start" spacing={0}>
-                                    <Text fontWeight="semibold">{group.name}</Text>
-                                    <Text fontSize="sm" color="gray.600" noOfLines={1}>
-                                      {group.description}
-                                    </Text>
-                                  </VStack>
-                                </Td>
-                                <Td>
-                                  <Badge colorScheme={getGroupTypeBadgeColor(group.type)}>
-                                    {group.type}
-                                  </Badge>
-                                </Td>
-                                <Td>{group.department}</Td>
-                                <Td>{group.members?.length || 0}</Td>
-                                <Td>{group.createdBy?.name}</Td>
-                                <Td>
-                                  <HStack>
-                                    <Button
-                                      size="sm"
-                                      leftIcon={<Icon as={FiUsers} />}
-                                      colorScheme="blue"
-                                      variant="outline"
-                                      onClick={() => openMemberModal(group)}
-                                    >
-                                      Members
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      leftIcon={<Icon as={FiEdit} />}
-                                      onClick={() => {
-                                        setSelectedGroup(group);
-                                        onEditGroupOpen();
-                                      }}
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      colorScheme="red"
-                                      leftIcon={<Icon as={FiTrash2} />}
-                                      onClick={() => {
-                                        setDeleteTarget({ type: 'group', id: group._id, name: group.name });
-                                        onDeleteOpen();
-                                      }}
-                                    >
-                                      Delete
-                                    </Button>
-                                  </HStack>
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
+                        <>
+                          <Box maxH="600px" overflowY="auto">
+                            <Table variant="simple">
+                              <Thead position="sticky" top={0} bg={cardBg} zIndex={1}>
+                                <Tr>
+                                  <Th>Group Details</Th>
+                                  <Th>Type</Th>
+                                  <Th>Department</Th>
+                                  <Th>Members</Th>
+                                  <Th>Created By</Th>
+                                  <Th>Actions</Th>
+                                </Tr>
+                              </Thead>
+                              <Tbody>
+                                {groups.map((group) => (
+                                  <Tr key={group._id} _hover={{ bg: 'gray.50' }}>
+                                    <Td>
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontWeight="semibold" fontSize="md">{group.name}</Text>
+                                        <Text fontSize="sm" color="gray.600" noOfLines={2} maxW="300px">
+                                          {group.description || 'No description'}
+                                        </Text>
+                                        <Text fontSize="xs" color="gray.400">
+                                          Created: {new Date(group.createdAt).toLocaleDateString()}
+                                        </Text>
+                                      </VStack>
+                                    </Td>
+                                    <Td>
+                                      <Badge 
+                                        colorScheme={getGroupTypeBadgeColor(group.type)}
+                                        variant="subtle"
+                                        px={2}
+                                        py={1}
+                                        borderRadius="md"
+                                      >
+                                        {group.type.toUpperCase()}
+                                      </Badge>
+                                    </Td>
+                                    <Td>
+                                      <VStack align="start" spacing={0}>
+                                        <Text fontSize="sm">{group.department || 'N/A'}</Text>
+                                        {group.year && (
+                                          <Text fontSize="xs" color="gray.500">Year {group.year}</Text>
+                                        )}
+                                      </VStack>
+                                    </Td>
+                                    <Td>
+                                      <HStack>
+                                        <Badge colorScheme="green" variant="solid" borderRadius="full">
+                                          {group.members?.length || 0}
+                                        </Badge>
+                                        <Text fontSize="sm" color="gray.600">members</Text>
+                                      </HStack>
+                                    </Td>
+                                    <Td>
+                                      <HStack>
+                                        <Avatar size="xs" name={group.createdBy?.name} />
+                                        <VStack align="start" spacing={0}>
+                                          <Text fontSize="sm" fontWeight="medium">
+                                            {group.createdBy?.name}
+                                          </Text>
+                                          <Badge size="xs" colorScheme={getRoleBadgeColor(group.createdBy?.role || '')}>
+                                            {group.createdBy?.role}
+                                          </Badge>
+                                        </VStack>
+                                      </HStack>
+                                    </Td>
+                                    <Td>
+                                      <VStack spacing={2} align="start">
+                                        <HStack spacing={1}>
+                                          <Button
+                                            size="xs"
+                                            leftIcon={<Icon as={FiUsers} />}
+                                            colorScheme="blue"
+                                            variant="outline"
+                                            onClick={() => openMemberModal(group)}
+                                          >
+                                            Members
+                                          </Button>
+                                          <Button
+                                            size="xs"
+                                            leftIcon={<Icon as={FiEdit} />}
+                                            colorScheme="green"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setSelectedGroup(group);
+                                              onEditGroupOpen();
+                                            }}
+                                          >
+                                            Edit
+                                          </Button>
+                                        </HStack>
+                                        <Button
+                                          size="xs"
+                                          colorScheme="red"
+                                          variant="outline"
+                                          leftIcon={<Icon as={FiTrash2} />}
+                                          onClick={() => {
+                                            setDeleteTarget({ type: 'group', id: group._id, name: group.name });
+                                            onDeleteOpen();
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </VStack>
+                                    </Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Box>
+                          
+                          {/* Pagination Info and Load More */}
+                          <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
+                            <HStack justify="space-between" align="center">
+                              <Text fontSize="sm" color="gray.600">
+                                Showing {groups.length} of {groupPagination.total} groups
+                              </Text>
+                              {groupPagination.hasMore && (
+                                <Button
+                                  size="sm"
+                                  colorScheme="blue"
+                                  variant="outline"
+                                  isLoading={loadingMore}
+                                  onClick={() => loadGroups(groupPagination.page + 1, true)}
+                                >
+                                  Load More
+                                </Button>
+                              )}
+                            </HStack>
+                            {loadingMore && (
+                              <Center mt={4}>
+                                <Spinner size="sm" />
+                              </Center>
+                            )}
+                          </Box>
+                        </>
                       )}
                     </CardBody>
                   </Card>
@@ -873,71 +1060,130 @@ const Admin: React.FC = () => {
                     <CardBody>
                       {loading ? (
                         <Center py={10}>
-                          <Spinner />
+                          <Spinner size="lg" />
                         </Center>
                       ) : (
-                        <Table variant="simple">
-                          <Thead>
-                            <Tr>
-                              <Th>Sender</Th>
-                              <Th>Group</Th>
-                              <Th>Message</Th>
-                              <Th>Timestamp</Th>
-                              <Th>Actions</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {messages.map((message) => (
-                              <Tr key={message._id}>
-                                <Td>
-                                  <HStack>
-                                    <Avatar size="sm" name={message.senderId.name} />
-                                    <VStack align="start" spacing={0}>
-                                      <Text fontSize="sm" fontWeight="semibold">
-                                        {message.senderId.name}
-                                      </Text>
-                                      <Badge size="xs" colorScheme={getRoleBadgeColor(message.senderId.role)}>
-                                        {message.senderId.role}
-                                      </Badge>
-                                    </VStack>
-                                  </HStack>
-                                </Td>
-                                <Td>
-                                  <Text fontSize="sm" noOfLines={1}>
-                                    {(message as any).groupId?.name || 'Unknown Group'}
-                                  </Text>
-                                </Td>
-                                <Td>
-                                  <Text fontSize="sm" noOfLines={2} maxW="300px">
-                                    {message.text}
-                                  </Text>
-                                </Td>
-                                <Td>
-                                  <Text fontSize="xs">
-                                    {new Date(message.timestamp).toLocaleString()}
-                                  </Text>
-                                </Td>
-                                <Td>
-                                  <Button
-                                    size="sm"
-                                    colorScheme="red"
-                                    leftIcon={<Icon as={FiTrash2} />}
-                                    onClick={() => {
-                                      setDeleteTarget({ 
-                                        type: 'message', 
-                                        id: message._id, 
-                                        name: `Message from ${message.senderId.name}` 
-                                      });
-                                      onDeleteOpen();
-                                    }}
-                                  >
-                                    Delete
-                                  </Button>
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
+                        <>
+                          <Box maxH="600px" overflowY="auto">
+                            <Table variant="simple">
+                              <Thead position="sticky" top={0} bg={cardBg} zIndex={1}>
+                                <Tr>
+                                  <Th>Sender</Th>
+                                  <Th>Group</Th>
+                                  <Th>Message Content</Th>
+                                  <Th>Timestamp</Th>
+                                  <Th>Actions</Th>
+                                </Tr>
+                              </Thead>
+                              <Tbody>
+                                {messages.map((message) => (
+                                  <Tr key={message._id} _hover={{ bg: 'gray.50' }}>
+                                    <Td>
+                                      <HStack>
+                                        <Avatar size="sm" name={message.senderId.name} />
+                                        <VStack align="start" spacing={1}>
+                                          <Text fontSize="sm" fontWeight="semibold">
+                                            {message.senderId.name}
+                                          </Text>
+                                          <HStack spacing={1}>
+                                            <Badge size="xs" colorScheme={getRoleBadgeColor(message.senderId.role)}>
+                                              {message.senderId.role}
+                                            </Badge>
+                                            <Text fontSize="xs" color="gray.500">
+                                              {message.senderId.regNo}
+                                            </Text>
+                                          </HStack>
+                                        </VStack>
+                                      </HStack>
+                                    </Td>
+                                    <Td>
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontSize="sm" fontWeight="medium" noOfLines={1}>
+                                          {(message as any).groupId?.name || 'Unknown Group'}
+                                        </Text>
+                                        <Badge size="xs" colorScheme="blue" variant="outline">
+                                          {(message as any).groupId?.type || 'N/A'}
+                                        </Badge>
+                                      </VStack>
+                                    </Td>
+                                    <Td>
+                                      <Box bg="gray.50" p={3} borderRadius="md" maxW="400px">
+                                        <Text fontSize="sm" noOfLines={3} whiteSpace="pre-wrap">
+                                          {message.text}
+                                        </Text>
+                                        <Text fontSize="xs" color="gray.500" mt={1}>
+                                          {message.text.length} characters
+                                        </Text>
+                                      </Box>
+                                    </Td>
+                                    <Td>
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontSize="xs" fontWeight="medium">
+                                          {new Date(message.timestamp).toLocaleDateString()}
+                                        </Text>
+                                        <Text fontSize="xs" color="gray.500">
+                                          {new Date(message.timestamp).toLocaleTimeString()}
+                                        </Text>
+                                        <Text fontSize="xs" color="gray.400">
+                                          {(() => {
+                                            const now = new Date();
+                                            const msgDate = new Date(message.timestamp);
+                                            const diffTime = Math.abs(now.getTime() - msgDate.getTime());
+                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                            return `${diffDays} days ago`;
+                                          })()}
+                                        </Text>
+                                      </VStack>
+                                    </Td>
+                                    <Td>
+                                      <Button
+                                        size="sm"
+                                        colorScheme="red"
+                                        variant="outline"
+                                        leftIcon={<Icon as={FiTrash2} />}
+                                        onClick={() => {
+                                          setDeleteTarget({ 
+                                            type: 'message', 
+                                            id: message._id, 
+                                            name: `Message from ${message.senderId.name}` 
+                                          });
+                                          onDeleteOpen();
+                                        }}
+                                      >
+                                        Delete
+                                      </Button>
+                                    </Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Box>
+                          
+                          {/* Pagination Info and Load More */}
+                          <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
+                            <HStack justify="space-between" align="center">
+                              <Text fontSize="sm" color="gray.600">
+                                Showing {messages.length} of {messagePagination.total} messages
+                              </Text>
+                              {messagePagination.hasMore && (
+                                <Button
+                                  size="sm"
+                                  colorScheme="blue"
+                                  variant="outline"
+                                  isLoading={loadingMore}
+                                  onClick={() => loadMessages(messagePagination.page + 1, true)}
+                                >
+                                  Load More
+                                </Button>
+                              )}
+                            </HStack>
+                            {loadingMore && (
+                              <Center mt={4}>
+                                <Spinner size="sm" />
+                              </Center>
+                            )}
+                          </Box>
+                        </>
                       )}
                     </CardBody>
                   </Card>
@@ -1003,8 +1249,8 @@ const Admin: React.FC = () => {
                 </>
               ) : (
                 <>
-                  Are you sure you want to delete "{deleteTarget?.name}"? 
-                  This action cannot be undone.
+              Are you sure you want to delete "{deleteTarget?.name}"? 
+              This action cannot be undone.
                 </>
               )}
             </AlertDialogBody>

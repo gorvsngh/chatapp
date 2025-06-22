@@ -123,21 +123,21 @@ const Profile: React.FC = () => {
                   />
                   <VStack align="start" spacing={1} flex={1}>
                     <Heading as="h1" size="md" color="gray.800">
-                      {user.name}
-                    </Heading>
-                    <Badge
-                      colorScheme={getRoleBadgeColor(user.role)}
+                    {user.name}
+                  </Heading>
+                  <Badge
+                    colorScheme={getRoleBadgeColor(user.role)}
                       px={2}
-                      py={1}
-                      borderRadius="full"
+                    py={1}
+                    borderRadius="full"
                       fontSize="xs"
-                    >
-                      {formatRole(user.role)}
-                    </Badge>
+                  >
+                    {formatRole(user.role)}
+                  </Badge>
                     <Text fontSize="sm" color={textColor}>
                       {user.regNo}
                     </Text>
-                  </VStack>
+                </VStack>
                   <Button
                     leftIcon={<FiEdit2 />}
                     variant="outline"
@@ -149,39 +149,39 @@ const Profile: React.FC = () => {
                 </HStack>
 
                 <Divider />
-
+                
                 {/* Contact & Details */}
                 <VStack spacing={3} align="stretch" w="full">
                   <HStack spacing={3}>
                     <Box color="brand.500">
                       <FiMail size={16} />
-                    </Box>
+                  </Box>
                     <VStack align="start" spacing={0} flex={1}>
                       <Text fontSize="xs" color={textColor} fontWeight="500">
                         Email
-                      </Text>
+                    </Text>
                       <Text fontSize="sm" color="gray.800">
-                        {user.email}
-                      </Text>
-                    </VStack>
-                  </HStack>
+                      {user.email}
+                    </Text>
+                  </VStack>
+                </HStack>
 
                   {user.department && (
                     <HStack spacing={3}>
                       <Box color="brand.500">
                         <FiUser size={16} />
-                      </Box>
+                  </Box>
                       <VStack align="start" spacing={0} flex={1}>
                         <Text fontSize="xs" color={textColor} fontWeight="500">
                           Department {user.year && `• Year ${user.year}`}
-                        </Text>
+                    </Text>
                         <Text fontSize="sm" color="gray.800">
                           {user.department}
-                        </Text>
-                      </VStack>
-                    </HStack>
+                    </Text>
+                  </VStack>
+                </HStack>
                   )}
-                </VStack>
+              </VStack>
               </VStack>
             </CardBody>
           </Card>
