@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Button,
@@ -20,10 +20,9 @@ import {
   AlertIcon,
   Flex,
   Icon,
-  useClipboard,
   useToast,
 } from '@chakra-ui/react';
-import { FiUser, FiCopy, FiCheck } from 'react-icons/fi';
+import { FiUser, FiCopy } from 'react-icons/fi';
 
 interface TestUser {
   role: string;
